@@ -12,6 +12,7 @@ class Window extends Model
     protected $fillable = [
         'name',
         'number',
+        'ip_address',
         'services',
         'is_active',
         'current_turn_id',

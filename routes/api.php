@@ -33,6 +33,9 @@ Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth:sanc
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/user', [AuthController::class, 'user']);
 
+    // Obtener ventanilla por IP del cliente (para operadores)
+    Route::get('/windows/by-ip', [WindowController::class, 'getByIp']);
+
     // Cola de turnos para operador (filtrada por sus servicios)
     Route::get('/operator/queue', [TurnController::class, 'queue']);
 

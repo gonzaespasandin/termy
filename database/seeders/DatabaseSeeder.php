@@ -11,9 +11,9 @@ class DatabaseSeeder extends Seeder
     {
         $this->call([
             ServiceSeeder::class,    // Primero los servicios
-            TotemSeeder::class,      // Luego los totems (dependen de servicios)
             WindowSeeder::class,     // Ventanillas (dependen de servicios)
-            UserSeeder::class,       // Usuarios (dependen de ventanillas)
+            TotemSeeder::class,      // Totems/Perfiles (dependen de servicios)
+            UserSeeder::class,       // Usuarios (dependen de ventanillas y servicios)
             //TicketSeeder::class,     // Tickets (dependen de servicios)
         ]);
     }

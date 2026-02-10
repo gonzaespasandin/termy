@@ -16,7 +16,7 @@ class UserController extends Controller
      */
     public function index()
     {
-        $users = User::with('window')->orderBy('name')->get();
+        $users = User::orderBy('name')->get();
         
         // Agregar los nombres de servicios
         $users->transform(function ($user) {
@@ -39,7 +39,6 @@ class UserController extends Controller
             'role' => 'required|in:admin,operator',
             'services' => 'nullable|array',
             'services.*' => 'exists:services,id',
-            'window_id' => 'nullable|exists:windows,id',
         ]);
 
         if ($validator->fails()) {
@@ -56,7 +55,6 @@ class UserController extends Controller
         }
 
         $user = User::create($userData);
-        $user->load('window');
         $user->service_names = $user->getServiceNames();
         
         return response()->json([
@@ -70,7 +68,7 @@ class UserController extends Controller
      */
     public function show($id)
     {
-        $user = User::with('window')->find($id);
+        $user = User::find($id);
         
         if (!$user) {
             return response()->json(['message' => 'Usuario no encontrado'], 404);
@@ -99,7 +97,6 @@ class UserController extends Controller
             'role' => 'sometimes|required|in:admin,operator',
             'services' => 'nullable|array',
             'services.*' => 'exists:services,id',
-            'window_id' => 'nullable|exists:windows,id',
         ]);
 
         if ($validator->fails()) {
@@ -120,7 +117,6 @@ class UserController extends Controller
         }
 
         $user->update($userData);
-        $user->load('window');
         $user->service_names = $user->getServiceNames();
         
         return response()->json([

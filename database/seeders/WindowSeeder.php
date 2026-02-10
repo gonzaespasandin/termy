@@ -11,32 +11,37 @@ class WindowSeeder extends Seeder
     {
         $windows = [
             [
-                'name' => 'Ventanilla de Atención al Cliente',
+                'name' => 'Caja 1',
                 'number' => 1,
+                'ip_address' => '192.168.0.131',
                 'services' => [1], // AC
                 'is_active' => true,
             ],
             [
-                'name' => 'Ventanilla de Pediatría',
+                'name' => 'Caja 2',
                 'number' => 2,
+                'ip_address' => null,
                 'services' => [2], // PD
                 'is_active' => true,
             ],
             [
-                'name' => 'Ventanilla de Laboratorio',
+                'name' => 'Caja 3',
                 'number' => 3,
+                'ip_address' => null,
                 'services' => [3], // LB
                 'is_active' => true,
             ],
             [
-                'name' => 'Ventanilla de Kinesiología',
+                'name' => 'Caja 4',
                 'number' => 4,
+                'ip_address' => null,
                 'services' => [4], // KN
                 'is_active' => true,
             ],
             [
-                'name' => 'Ventanilla de Fonoaudiología',
+                'name' => 'Caja 5',
                 'number' => 5,
+                'ip_address' => null,
                 'services' => [5], // FA
                 'is_active' => true,
             ],

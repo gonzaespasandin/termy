@@ -24,7 +24,6 @@ class User extends Authenticatable
         'password',
         'role',
         'services',
-        'window_id',
     ];
 
     /**
@@ -52,11 +51,6 @@ class User extends Authenticatable
     }
 
     // Relaciones
-    public function window()
-    {
-        return $this->belongsTo(Window::class);
-    }
-
     public function attendedTurns()
     {
         return $this->hasMany(Turn::class, 'attended_by');
