@@ -59,14 +59,38 @@ class TotemController extends Controller
             'location' => 'nullable|string|max:255',
             'services' => 'required|array|min:1',
             'services.*' => 'exists:services,id',
-            'is_active' => 'boolean',
-            'ask_customer_name' => 'boolean',
+            'is_active' => 'sometimes|boolean',
+            'ask_customer_name' => 'sometimes|boolean',
+            'logo' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
+            'background_type' => 'nullable|in:solid,gradient',
+            'background_color_1' => 'nullable|string|max:20',
+            'background_color_2' => 'nullable|string|max:20',
         ]);
 
-        $data = $request->all();
+        $data = $request->except(['logo']);
+        
+        // Convertir strings '1'/'0' a boolean (desde FormData)
+        if (isset($data['is_active'])) {
+            $data['is_active'] = filter_var($data['is_active'], FILTER_VALIDATE_BOOLEAN);
+        } else {
+            $data['is_active'] = true; // Por defecto activo
+        }
+        
+        if (isset($data['ask_customer_name'])) {
+            $data['ask_customer_name'] = filter_var($data['ask_customer_name'], FILTER_VALIDATE_BOOLEAN);
+        } else {
+            $data['ask_customer_name'] = true; // Por defecto pide nombre
+        }
+        
         // Asegurarse de que services sea un array
         if (isset($data['services'])) {
             $data['services'] = is_array($data['services']) ? $data['services'] : [];
+        }
+
+        // Manejar subida del logo
+        if ($request->hasFile('logo')) {
+            $logoPath = $request->file('logo')->store('totem_logos', 'public');
+            $data['logo'] = $logoPath;
         }
 
         $totem = Totem::create($data);
@@ -90,7 +114,7 @@ class TotemController extends Controller
 
     /**
      * Actualizar totem/perfil
-     * PUT /api/totems/{id}
+     * PUT/POST /api/totems/{id}
      */
     public function update(Request $request, $id)
     {
@@ -102,14 +126,38 @@ class TotemController extends Controller
             'location' => 'nullable|string|max:255',
             'services' => 'sometimes|array|min:1',
             'services.*' => 'exists:services,id',
-            'is_active' => 'boolean',
-            'ask_customer_name' => 'boolean',
+            'is_active' => 'sometimes|boolean',
+            'ask_customer_name' => 'sometimes|boolean',
+            'logo' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
+            'background_type' => 'nullable|in:solid,gradient',
+            'background_color_1' => 'nullable|string|max:20',
+            'background_color_2' => 'nullable|string|max:20',
         ]);
 
-        $data = $request->all();
+        $data = $request->except(['logo', '_method']);
+        
+        // Convertir strings '1'/'0' a boolean (desde FormData)
+        if (isset($data['is_active'])) {
+            $data['is_active'] = filter_var($data['is_active'], FILTER_VALIDATE_BOOLEAN);
+        }
+        if (isset($data['ask_customer_name'])) {
+            $data['ask_customer_name'] = filter_var($data['ask_customer_name'], FILTER_VALIDATE_BOOLEAN);
+        }
+        
         // Asegurarse de que services sea un array
         if (isset($data['services'])) {
             $data['services'] = is_array($data['services']) ? $data['services'] : [];
+        }
+
+        // Manejar subida del logo
+        if ($request->hasFile('logo')) {
+            // Eliminar logo anterior si existe
+            if ($totem->logo && \Storage::disk('public')->exists($totem->logo)) {
+                \Storage::disk('public')->delete($totem->logo);
+            }
+            
+            $logoPath = $request->file('logo')->store('totem_logos', 'public');
+            $data['logo'] = $logoPath;
         }
 
         $totem->update($data);
@@ -134,6 +182,11 @@ class TotemController extends Controller
             return response()->json([
                 'message' => 'No se puede eliminar el perfil porque tiene turnos asociados'
             ], 409);
+        }
+        
+        // Eliminar logo si existe
+        if ($totem->logo && \Storage::disk('public')->exists($totem->logo)) {
+            \Storage::disk('public')->delete($totem->logo);
         }
         
         $totem->delete();

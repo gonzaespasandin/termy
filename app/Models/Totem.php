@@ -16,6 +16,10 @@ class Totem extends Model
         'services',
         'is_active',
         'ask_customer_name',
+        'logo',
+        'background_type',
+        'background_color_1',
+        'background_color_2',
     ];
 
     protected $casts = [

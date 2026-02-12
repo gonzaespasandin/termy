@@ -43,9 +43,18 @@ class SseController extends Controller
                     ->today()
                     ->get();
 
+                // Últimos 10 turnos llamados o en atención (para el display)
+                $recentCalled = Turn::with('service', 'window')
+                    ->whereIn('status', ['called', 'in_progress'])
+                    ->today()
+                    ->orderBy('called_at', 'desc')
+                    ->limit(10)
+                    ->get();
+
                 $data = [
                     'waiting' => $waiting,
                     'in_progress' => $inProgress,
+                    'recent_called' => $recentCalled,
                     'timestamp' => now()->toISOString(),
                 ];
 

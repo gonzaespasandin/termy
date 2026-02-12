@@ -226,9 +226,18 @@ class TurnController extends Controller
             ->today()
             ->get();
         
+        // Últimos 10 turnos llamados o en atención (ordenados por más reciente primero)
+        $recentCalled = Turn::with('service', 'window')
+            ->whereIn('status', ['called', 'in_progress'])
+            ->today()
+            ->orderBy('called_at', 'desc')
+            ->limit(10)
+            ->get();
+        
         return response()->json([
             'waiting' => $waiting,
             'in_progress' => $inProgress,
+            'recent_called' => $recentCalled, // Nueva lista para el display
         ]);
     }
 
