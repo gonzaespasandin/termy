@@ -18,9 +18,9 @@ function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1080,
     height: 1920,
-    fullscreen: !config.isDev, // Pantalla completa en producción
-    kiosk: !config.isDev,       // Modo kiosko en producción
-    frame: config.isDev,        // Sin marco en producción
+    fullscreen: true, 
+    kiosk: true,       
+    frame: config.isDev,        
     autoHideMenuBar: true,
     webPreferences: {
       nodeIntegration: false,
