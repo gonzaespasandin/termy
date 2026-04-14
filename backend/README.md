@@ -1,24 +1,25 @@
-# Turnero Backend
+# termy-backend
 
 API REST desarrollada con Laravel 12 que gestiona el sistema de turnos.
 
 ## Funcionalidades
 
-- **Autenticación**: Login/logout con Laravel Sanctum
-- **Gestión de turnos**: Creación, actualización y seguimiento de estados (waiting, called, in_progress, completed, cancelled)
-- **CRUD de servicios**: Administración de servicios disponibles
-- **CRUD de usuarios**: Gestión de operadores y administradores
-- **CRUD de perfiles (totems)**: Configuración de grupos de servicios por perfil
-- **Panel de operador**: Cola de turnos, llamar turnos, marcar como atendido/completado
-- **Dashboard admin**: Estadísticas de turnos del día
+- **Autenticación**: Login/logout con Laravel Sanctum (tokens Bearer)
+- **Gestión de turnos**: Creación, seguimiento de estados y ciclo de vida completo
+- **CRUD de servicios**: Administración de servicios disponibles con código y color
+- **CRUD de usuarios**: Gestión de operadores y administradores con asignación de servicios
+- **CRUD de ventanillas**: Puntos de atención con servicios habilitados
+- **CRUD de perfiles (totems)**: Configuración de grupos de servicios y personalización visual
+- **Panel de operador**: Cola filtrada, llamar turnos, atender, completar, marcar ausente, devolver a cola
+- **Pantalla de display**: Cola pública con actualizaciones en tiempo real (SSE)
+- **Dashboard admin**: Estadísticas y KPIs del día
 - **Historial**: Búsqueda y filtrado de turnos históricos con paginación
 
 ## Requisitos
 
 - PHP 8.2+
 - Composer
-- MySQL/MariaDB
-- Node.js (para compilar assets)
+- SQLite (incluido en PHP) o MySQL/MariaDB
 
 ## Instalación
 
@@ -33,7 +34,11 @@ cp .env.example .env
 php artisan key:generate
 ```
 
-3. Configurar base de datos en `.env`:
+3. (Opcional) Configurar base de datos en `.env`. Por defecto usa SQLite:
+```
+DB_CONNECTION=sqlite
+```
+Para MySQL:
 ```
 DB_CONNECTION=mysql
 DB_HOST=127.0.0.1
@@ -48,7 +53,17 @@ DB_PASSWORD=tu_password
 php artisan migrate
 ```
 
-5. (Opcional) Crear usuario admin:
+5. Crear el enlace simbólico para imágenes públicas (logos de totems):
+```bash
+php artisan storage:link
+```
+
+6. (Opcional) Poblar con datos de ejemplo:
+```bash
+php artisan db:seed
+```
+
+7. Crear usuario admin manualmente (si no usas seeders):
 ```bash
 php artisan tinker
 ```
@@ -68,25 +83,67 @@ Servidor de desarrollo:
 php artisan serve --host=0.0.0.0
 ```
 
-La API estará disponible en `http://localhost:8000/api`
+La API estará disponible en `http://<tu-ip>:8000/api`
 
-## Estructura de la API
+## Endpoints de la API
 
-- `POST /api/login` - Autenticación
-- `POST /api/logout` - Cerrar sesión
-- `GET /api/user` - Usuario actual
-- `GET /api/turns` - Listar turnos
-- `POST /api/turns` - Crear turno
-- `GET /api/totems/{code}/services` - Servicios de un perfil
-- `GET /api/operator/queue` - Cola de turnos para operador
-- `POST /api/turns/{id}/call` - Llamar turno
-- `POST /api/turns/{id}/attend` - Iniciar atención
-- `POST /api/turns/{id}/complete` - Completar turno
-- `GET /api/admin/dashboard/stats` - Estadísticas del dashboard
-- `GET /api/admin/history` - Historial de turnos
+### Rutas públicas
+
+| Método | Ruta | Descripción |
+|---|---|---|
+| `POST` | `/api/login` | Autenticación |
+| `GET` | `/api/services` | Listar servicios activos |
+| `POST` | `/api/turns` | Crear turno (emitir ticket) |
+| `GET` | `/api/turns/queue` | Cola para pantalla de display |
+| `GET` | `/api/totems/{code}/services` | Servicios de un perfil de totem |
+| `GET` | `/api/sse/display` | Stream SSE para pantalla pública |
+
+### Rutas protegidas (requieren Bearer token)
+
+| Método | Ruta | Descripción |
+|---|---|---|
+| `POST` | `/api/logout` | Cerrar sesión |
+| `GET` | `/api/user` | Usuario autenticado |
+| `GET` | `/api/windows/by-ip` | Ventanilla asociada a la IP del operador |
+| `GET` | `/api/operator/queue` | Cola filtrada para operador |
+| `GET` | `/api/sse/operator` | Stream SSE para operador |
+| `POST` | `/api/turns/{id}/call` | Llamar turno |
+| `POST` | `/api/turns/{id}/attend` | Iniciar atención |
+| `POST` | `/api/turns/{id}/complete` | Completar turno |
+| `POST` | `/api/turns/{id}/no-show` | Marcar como ausente |
+| `POST` | `/api/turns/{id}/cancel` | Cancelar turno |
+| `POST` | `/api/turns/{id}/return-to-queue` | Devolver turno a la cola |
+
+### Rutas de administrador (requieren rol `admin`)
+
+| Método | Ruta | Descripción |
+|---|---|---|
+| `GET/POST` | `/api/admin/services` | CRUD de servicios |
+| `GET/POST` | `/api/admin/users` | CRUD de usuarios |
+| `GET/POST` | `/api/admin/windows` | CRUD de ventanillas |
+| `GET/POST` | `/api/admin/totems` | CRUD de perfiles de totem |
+| `GET/POST` | `/api/admin/turns` | CRUD de turnos |
+| `GET` | `/api/admin/dashboard/stats` | Estadísticas del dashboard |
+| `GET` | `/api/admin/history` | Historial de turnos (paginado) |
+| `GET` | `/api/admin/history/operators` | Listado de operadores |
+| `GET` | `/api/admin/history/{id}` | Detalle de un turno |
+
+## Estados de un turno
+
+| Estado | Descripción |
+|---|---|
+| `waiting` | En cola |
+| `called` | Llamado, esperando al cliente |
+| `in_progress` | En atención |
+| `completed` | Completado |
+| `cancelled` | Cancelado |
+| `no_show` | Ausente (el cliente no se presentó) |
 
 ## Configuración
 
-- Zona horaria: `America/Argentina/Buenos_Aires` (configurable en `config/app.php`)
-- Los números de ticket son continuos (no se resetean diariamente)
-- El campo `issued_at` guarda la hora de emisión y no se modifica
+- **Zona horaria**: `America/Argentina/Buenos_Aires` (configurable en `config/app.php`)
+- **Base de datos**: SQLite por defecto; configurable a MySQL/MariaDB en `.env`
+- **Numeración de tickets**: continua, no se resetea diariamente
+- **Tiempo real**: SSE (Server-Sent Events), compatible con Nginx (`X-Accel-Buffering: no`)
+- **CORS**: configurar `FRONTEND_URL` en `.env` para permitir el origen del frontend
+- **Imágenes**: los logos de totems se almacenan en `storage/app/public/totem_logos/` y se sirven vía el symlink `public/storage` (creado con `php artisan storage:link`)

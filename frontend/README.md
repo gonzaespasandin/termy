@@ -1,19 +1,20 @@
-# Turnero Frontend
+# termy-frontend
 
-Aplicación web SPA desarrollada con Vue 3 que funciona como interfaz del sistema de turnos.
+Aplicación web SPA desarrollada con Vue 3 que sirve como interfaz principal del sistema de turnos.
 
 ## Funcionalidades
 
-- **Pantalla de totem**: Selección de servicios y generación de tickets
-- **Panel de operador**: Gestión de cola de turnos, llamar turnos, marcar estados
-- **Panel de administración**: CRUD de servicios, usuarios y perfiles, dashboard con estadísticas, historial de turnos
-- **Pantalla de display**: Visualización pública de turnos llamados
-- **Impresión de tickets**: Integración con servicio de impresión (Electron o HTTP)
+- **Pantalla de totem** (`/`): Selección de servicios, captura opcional del nombre del cliente y generación de tickets
+- **Login** (`/login`): Autenticación para operadores y administradores
+- **Panel de operador** (`/operator`): Gestión de cola en tiempo real, llamar turnos, marcar estados
+- **Panel de administración** (`/admin`): CRUD de servicios, usuarios, ventanillas y perfiles; dashboard con estadísticas; historial de turnos
+- **Pantalla de display** (`/display`): Visualización pública de turnos llamados con actualización en tiempo real (SSE)
+- **Impresión de tickets**: Integración dual con Electron (IPC) o microservicio HTTP
 
 ## Requisitos
 
 - Node.js 18+
-- npm o yarn
+- npm
 
 ## Instalación
 
@@ -28,7 +29,7 @@ Desarrollo:
 npm run dev
 ```
 
-La aplicación estará disponible en `http://localhost:5173`
+La aplicación estará disponible en `http://<tu-ip>:5173`
 
 Build para producción:
 ```bash
@@ -39,23 +40,55 @@ Los archivos compilados estarán en `dist/`
 
 ## Estructura
 
-- `/src/views/` - Vistas principales (HomeView, OperatorView, AdminView, DisplayView)
-- `/src/api/` - Cliente API para comunicación con el backend
-- `/src/services/` - Servicios (impresión, etc.)
-- `/src/router/` - Configuración de rutas
+```
+src/
+├── api/
+│   └── index.js          # Cliente Axios + todas las funciones de API
+├── components/
+│   ├── admin/             # AdminDashboard, AdminHistorial, AdminServicios,
+│   │                      # AdminUsuarios, AdminVentanillas, AdminPerfiles, AdminSidebar
+│   └── operator/          # OperatorCurrentTurn, OperatorQueue, OperatorHeader, OperatorNoWindow
+├── composables/
+│   ├── useToast.js        # Notificaciones toast
+│   └── useConfirm.js      # Diálogos de confirmación
+├── router/
+│   └── index.js           # Rutas con guards de autenticación y rol
+├── services/
+│   └── printService.js    # Servicio de impresión (detecta Electron vs HTTP)
+└── views/
+    ├── HomeView.vue        # Pantalla de totem (pública)
+    ├── LoginView.vue       # Autenticación
+    ├── OperatorView.vue    # Panel de operador (protegido)
+    ├── AdminView.vue       # Panel de administración (protegido, rol admin)
+    └── DisplayView.vue     # Pantalla de display pública
+```
 
 ## Configuración
 
-La aplicación se conecta al backend configurado en `/src/api/index.js` (por defecto `http://localhost:8000/api`).
+### URL del backend
 
-Para desarrollo en red local, modificar el host en `package.json`:
-```json
-"dev": "vite --host TU_IP_LOCAL"
+La URL de la API está definida en `src/api/index.js`:
+
+```js
+const API_BASE_URL = 'http://<IP-DEL-SERVIDOR>:8000/api'
 ```
+
+Cambiar esta IP por la dirección real del servidor backend en tu red.
+
+### Host del servidor de desarrollo
+
+Para que otros dispositivos de la red puedan acceder durante el desarrollo, el servidor Vite debe escuchar en la IP local. Modificar en `package.json`:
+
+```json
+"dev": "vite --host <TU_IP_LOCAL>"
+```
+
+O usar `--host 0.0.0.0` para escuchar en todas las interfaces.
 
 ## Notas
 
-- Usa Tailwind CSS para estilos
-- Requiere autenticación para acceder a `/admin` y `/operator`
-- La pantalla de totem (`/`) es pública
-- La impresión funciona mediante el servicio de Electron o un microservicio HTTP
+- Usa Tailwind CSS v4 para estilos
+- La autenticación requiere token Bearer almacenado en `localStorage`
+- Las rutas `/admin` y `/operator` requieren autenticación; `/admin` requiere rol `admin`
+- Las rutas `/` y `/display` son públicas
+- La impresión de tickets detecta automáticamente si corre dentro de Electron (usa IPC) o en navegador (usa microservicio HTTP en puerto 3001)
