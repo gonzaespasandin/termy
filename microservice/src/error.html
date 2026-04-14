@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Error de Conexión - Turnero</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+    }
+    
+    .container {
+      text-align: center;
+      padding: 40px;
+      max-width: 500px;
+    }
+    
+    .icon {
+      font-size: 80px;
+      margin-bottom: 20px;
+      animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.7; transform: scale(0.95); }
+    }
+    
+    h1 {
+      font-size: 28px;
+      margin-bottom: 15px;
+      color: #e74c3c;
+    }
+    
+    p {
+      font-size: 16px;
+      color: #bdc3c7;
+      margin-bottom: 10px;
+      line-height: 1.6;
+    }
+    
+    .status {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 10px;
+      padding: 20px;
+      margin: 30px 0;
+    }
+    
+    .status-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 10px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    .status-item:last-child {
+      border-bottom: none;
+    }
+    
+    .retry-btn {
+      background: #3498db;
+      color: white;
+      border: none;
+      padding: 15px 40px;
+      font-size: 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.3s;
+      margin-top: 20px;
+    }
+    
+    .retry-btn:hover {
+      background: #2980b9;
+      transform: scale(1.05);
+    }
+    
+    .countdown {
+      color: #f39c12;
+      font-size: 14px;
+      margin-top: 15px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="icon">🔌</div>
+    
+    <h1>Sin conexión al servidor</h1>
+    
+    <p>No se pudo conectar con el servidor del sistema Turnero.</p>
+    <p>La aplicación intentará reconectarse automáticamente.</p>
+    
+    <div class="status">
+      <div class="status-item">
+        <span>Estado:</span>
+        <span style="color: #e74c3c;">● Desconectado</span>
+      </div>
+      <div class="status-item">
+        <span>Servidor:</span>
+        <span id="server-url">Cargando...</span>
+      </div>
+      <div class="status-item">
+        <span>Totem:</span>
+        <span id="totem-code">Cargando...</span>
+      </div>
+    </div>
+    
+    <button class="retry-btn" onclick="retry()">
+      🔄 Reintentar Ahora
+    </button>
+    
+    <div class="countdown">
+      Reintentando automáticamente en <span id="countdown">5</span> segundos...
+    </div>
+  </div>
+
+  <script>
+    let countdown = 5;
+    
+    function retry() {
+      window.location.reload();
+    }
+    
+    // Countdown automático
+    setInterval(() => {
+      countdown--;
+      document.getElementById('countdown').textContent = countdown;
+      
+      if (countdown <= 0) {
+        retry();
+      }
+    }, 1000);
+    
+    // Cargar info del totem si está disponible
+    if (window.turneroAPI) {
+      window.turneroAPI.getConfig().then(config => {
+        document.getElementById('server-url').textContent = config.serverUrl;
+        document.getElementById('totem-code').textContent = config.totemCode;
+      });
+    }
+  </script>
+</body>
+</html>
+
