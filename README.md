@@ -66,7 +66,7 @@ php artisan db:seed          # opcional: datos de ejemplo
 php artisan serve --host=0.0.0.0
 ```
 
-Ver [termy-backend/README.md](termy-backend/README.md) para configuración detallada.
+Ver [termy-backend/README.md](backend/README.md) para configuración detallada.
 
 ### 2. Frontend
 
@@ -77,7 +77,7 @@ npm install
 npm run dev
 ```
 
-Ver [termy-frontend/README.md](termy-frontend/README.md) para configuración detallada.
+Ver [termy-frontend/README.md](frontend/README.md) para configuración detallada.
 
 ### 3. App Electron (totem)
 
@@ -89,7 +89,7 @@ cp env.example .env
 npm start
 ```
 
-Ver [termy-electron/README.md](termy-electron/README.md) para instalación en producción y solución de problemas.
+Ver [termy-electron/README.md](microservice/README.md) para instalación en producción y solución de problemas.
 
 ---
 
@@ -161,4 +161,4 @@ Los tres componentes deben estar en la misma red. La configuración de IP se hac
 
 ## Autor
 
-Dayco Gaming S.A.
+Gonzalo Espasandin.
