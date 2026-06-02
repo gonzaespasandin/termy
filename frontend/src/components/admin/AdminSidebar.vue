@@ -67,6 +67,7 @@ const tabs = [
   { id: 'perfiles',    name: 'Perfiles',    icon: 'fas fa-layer-group' },
   { id: 'ventanillas', name: 'Ventanillas', icon: 'fas fa-desktop' },
   { id: 'servicios',   name: 'Servicios',   icon: 'fas fa-clipboard-list' },
+  { id: 'display',     name: 'Display',     icon: 'fas fa-tv' },
 ]
 
 const userInitials = computed(() => {

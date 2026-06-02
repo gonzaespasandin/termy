@@ -18,6 +18,7 @@
         <AdminPerfiles v-else-if="activeTab === 'perfiles'" />
         <AdminVentanillas v-else-if="activeTab === 'ventanillas'" />
         <AdminServicios v-else-if="activeTab === 'servicios'" />
+        <AdminDisplay v-else-if="activeTab === 'display'" />
       </main>
     </div>
 
@@ -70,6 +71,7 @@ import AdminUsuarios from '../components/admin/AdminUsuarios.vue'
 import AdminPerfiles from '../components/admin/AdminPerfiles.vue'
 import AdminVentanillas from '../components/admin/AdminVentanillas.vue'
 import AdminServicios from '../components/admin/AdminServicios.vue'
+import AdminDisplay from '../components/admin/AdminDisplay.vue'
 
 const router = useRouter()
 const user = ref(null)
