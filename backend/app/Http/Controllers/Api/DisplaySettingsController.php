@@ -40,6 +40,10 @@ class DisplaySettingsController extends Controller
      */
     public function update(Request $request)
     {
+        if (auth()->user()->role !== 'admin') {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
         $request->validate([
             'video_enabled' => 'sometimes|boolean',
             'video'         => 'nullable|mimes:mp4,webm|max:51200',
@@ -82,6 +86,10 @@ class DisplaySettingsController extends Controller
      */
     public function deleteVideo()
     {
+        if (auth()->user()->role !== 'admin') {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
         $settings = DisplaySettings::whereNull('channel_id')->first();
 
         if ($settings && $settings->video_path) {
