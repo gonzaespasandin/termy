@@ -11,11 +11,13 @@ use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\SseController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\HistoryController;
+use App\Http\Controllers\Api\DisplaySettingsController;
 
 // Rutas públicas (sin autenticación)
 Route::get('/services', [ServiceController::class, 'index']);
 Route::post('/turns', [TurnController::class, 'store']);
 Route::get('/turns/queue', [TurnController::class, 'queuePublic']); // Pantalla de espera (todos)
+Route::get('/display-settings', [DisplaySettingsController::class, 'show']);
 
 // SSE para tiempo real (pantalla pública)
 Route::get('/sse/display', [SseController::class, 'display']);
@@ -46,6 +48,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/admin/history', [HistoryController::class, 'index']);
     Route::get('/admin/history/operators', [HistoryController::class, 'operators']);
     Route::get('/admin/history/{id}', [HistoryController::class, 'show']);
+
+    // Display settings
+    Route::post('/admin/display-settings', [DisplaySettingsController::class, 'update']);
+    Route::delete('/admin/display-settings/video', [DisplaySettingsController::class, 'deleteVideo']);
 
     // CRUD Admin (solo admins)
     Route::apiResource('admin/services', ServiceController::class);
