@@ -174,6 +174,7 @@ const applyFile = (file) => {
     saveError.value = 'El archivo supera el límite de 50 MB'
     return
   }
+  if (previewUrl.value) URL.revokeObjectURL(previewUrl.value)
   selectedFile.value = file
   previewUrl.value = URL.createObjectURL(file)
 }
