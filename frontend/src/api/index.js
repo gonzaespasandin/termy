@@ -85,4 +85,16 @@ export const login = (credentials) => api.post('/login', credentials);
 export const logout = () => api.post('/logout');
 export const getUser = () => api.get('/user');
 
+// Display settings
+export const getDisplaySettings = () => api.get('/display-settings');
+
+export const updateDisplaySettings = (data) => {
+  const config = data instanceof FormData
+    ? { headers: { 'Content-Type': 'multipart/form-data' } }
+    : {};
+  return api.post('/admin/display-settings', data, config);
+};
+
+export const deleteDisplayVideo = () => api.delete('/admin/display-settings/video');
+
 export default api;
