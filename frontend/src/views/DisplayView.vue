@@ -20,7 +20,7 @@
       <!-- ══════════════════════════════════
            PANEL TURNOS — 70%
       ══════════════════════════════════ -->
-      <section class="turns-panel">
+      <section class="turns-panel" :class="{ 'turns-panel--full': !showVideoPanel }">
 
         <!-- HERO: turno actualmente llamado -->
         <div
@@ -73,8 +73,19 @@
       <!-- ══════════════════════════════════
            PANEL VIDEO — 30%
       ══════════════════════════════════ -->
-      <aside class="video-panel">
-        <div class="video-placeholder">
+      <aside class="video-panel" v-if="showVideoPanel">
+        <!-- Video subido -->
+        <video
+          v-if="settings.video_url"
+          :src="settings.video_url"
+          class="video-player"
+          loop
+          autoplay
+          muted
+          playsinline
+        ></video>
+        <!-- Placeholder si no hay video -->
+        <div v-else class="video-placeholder">
           <div class="video-icon">▶</div>
           <div class="video-title">Tu video aquí</div>
           <div class="video-hint">
@@ -93,7 +104,7 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted, computed } from 'vue';
-import { getQueue } from '../api';
+import { getQueue, getDisplaySettings } from '../api';
 
 // ──────────────────────────────
 // Reactive state
@@ -104,6 +115,7 @@ const recentCalled = ref([]);
 const currentTime  = ref('');
 const currentDate  = ref('');
 const lastCalledId = ref(null);
+const settings = ref({ video_enabled: true, video_path: null, video_url: null });
 
 const USE_SSE = false; // Cambiar a true para usar SSE en vez de polling
 
@@ -119,6 +131,8 @@ let clockId     = null;
 const lastCalledTurn = computed(() => {
   return recentCalled.value.length > 0 ? recentCalled.value[0] : null;
 });
+
+const showVideoPanel = computed(() => settings.value.video_enabled);
 
 
 // ──────────────────────────────
@@ -281,7 +295,14 @@ const formatTime = (datetime) => {
 // ──────────────────────────────
 // Lifecycle
 // ──────────────────────────────
-onMounted(() => {
+onMounted(async () => {
+  try {
+    const res = await getDisplaySettings();
+    settings.value = res.data;
+  } catch (err) {
+    console.error('Error cargando display settings:', err);
+  }
+
   loadQueue();
   updateClock();
 
@@ -687,5 +708,16 @@ onUnmounted(() => {
   font-size: clamp(9px, 1vw, 13px);
   font-weight: 700;
   color: #94a3b8;
+}
+
+.video-player {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.turns-panel--full {
+  flex: 0 0 100%;
+  border-right: none;
 }
 </style>
