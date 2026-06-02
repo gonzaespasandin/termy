@@ -1,148 +1,93 @@
 <template>
   <div class="display-root">
 
-    <!-- ═══════════ BACKGROUND ═══════════ -->
-    <div class="display-bg">
-      <div class="bg-grid"></div>
-      <div class="bg-radial-glow"></div>
+    <!-- ═══════════ TOP BAR ═══════════ -->
+    <div class="top-bar">
+      <div class="bar-clock">{{ currentTime }}</div>
+      <div class="bar-date">{{ currentDate }}</div>
+      <div class="bar-weather">
+        <div class="bar-weather-pill">
+          <span class="weather-icon">⛅</span>
+          <span class="weather-temp">–°C</span>
+          <span class="weather-city">–</span>
+        </div>
+      </div>
     </div>
 
-    <!-- ═══════════ MAIN LAYOUT ═══════════ -->
-    <div class="display-layout">
+    <!-- ═══════════ MAIN AREA ═══════════ -->
+    <div class="main-area">
 
       <!-- ══════════════════════════════════
-           LEFT PANEL — 65%
+           PANEL TURNOS — 70%
       ══════════════════════════════════ -->
-      <section class="panel-left">
+      <section class="turns-panel">
 
-        <!-- HERO: turno más reciente llamado -->
-        <div class="hero-section">
-          <div
-            v-if="lastCalledTurn"
-            class="hero-card"
-            :class="{ 'hero-card--pulsing': lastCalledTurn.status === 'called' }"
-            :style="{ '--svc-color': lastCalledTurn.service?.color || '#3b82f6' }"
-          >
-            <!-- Barra de acento izquierda en color del servicio -->
-            <div class="hero-accent-bar"></div>
-
-            <!-- Contenido principal -->
-            <div class="hero-body">
-              <div class="hero-eyebrow">
-                <span class="eyebrow-dot"></span>
-                LLAMANDO AHORA
-              </div>
-
-              <div
-                class="hero-service-name"
-                :style="{ color: lastCalledTurn.service?.color || '#3b82f6' }"
-              >
-                {{ lastCalledTurn.service?.name || '' }}
-              </div>
-
-              <div class="hero-ticket-number">
-                {{ lastCalledTurn.ticket_number }}
-              </div>
-
-              <div class="hero-window" v-if="lastCalledTurn.window">
-                <span class="hero-window-label">Ventanilla</span>
-                <span class="hero-window-value">{{ lastCalledTurn.window.name }}</span>
-              </div>
-
-              <div class="hero-time">{{ formatTime(lastCalledTurn.called_at) }}</div>
+        <!-- HERO: turno actualmente llamado -->
+        <div
+          v-if="lastCalledTurn"
+          class="hero-card"
+          :class="{ 'hero-card--pulsing': lastCalledTurn.status === 'called' }"
+          :style="{ '--svc-color': lastCalledTurn.service?.color || '#2563eb' }"
+        >
+          <div class="hero-body">
+            <div class="hero-eyebrow">
+              <span class="eyebrow-dot"></span>
+              <span class="eyebrow-text">Llamando ahora</span>
             </div>
-
-            <!-- Glow de fondo en color del servicio -->
-            <div class="hero-glow-overlay"></div>
-          </div>
-
-          <!-- Estado vacío -->
-          <div v-else class="hero-empty">
-            <div class="hero-empty-icon">
-              <i class="fas fa-broadcast-tower"></i>
+            <div class="hero-service">{{ lastCalledTurn.service?.name }}</div>
+            <div class="hero-number">{{ lastCalledTurn.ticket_number }}</div>
+            <div class="hero-station" v-if="lastCalledTurn.window">
+              {{ lastCalledTurn.window.name }}
             </div>
-            <p class="hero-empty-text">Esperando próximo llamado...</p>
+            <div class="hero-time">Llamado a las {{ formatTime(lastCalledTurn.called_at) }}</div>
           </div>
+          <div class="hero-glow"></div>
         </div>
 
-        <!-- HISTORIAL: llamados anteriores (índices 1–5) -->
+        <!-- Estado vacío -->
+        <div v-else class="hero-empty">
+          <div class="hero-empty-icon">📡</div>
+          <p class="hero-empty-text">Esperando próximo llamado...</p>
+        </div>
+
+        <!-- HISTORIAL: últimos 3 turnos llamados anteriores -->
         <div class="history-section" v-if="recentCalled.length > 1">
-          <div class="history-header">
-            <span class="history-label">Llamados anteriores</span>
-          </div>
+          <div class="history-label">Llamados anteriores</div>
           <div class="history-list">
             <div
-              v-for="turn in recentCalled.slice(1, 6)"
+              v-for="turn in recentCalled.slice(1, 4)"
               :key="turn.id"
               class="history-card"
-              :style="{ '--svc-color': turn.service?.color || '#3b82f6' }"
+              :style="{ '--svc-color': turn.service?.color || '#2563eb' }"
             >
-              <div class="history-color-dot"></div>
-              <div class="history-ticket">{{ turn.ticket_number }}</div>
-              <div class="history-service">{{ turn.service?.name }}</div>
-              <div class="history-window" v-if="turn.window">
-                Ventanilla {{ turn.window.name }}
-              </div>
-              <div class="history-time">{{ formatTime(turn.called_at) }}</div>
+              <span class="hist-ticket">{{ turn.ticket_number }}</span>
+              <span class="hist-service">{{ turn.service?.name }}</span>
+              <span class="hist-station" v-if="turn.window">{{ turn.window.name }}</span>
+              <span class="hist-time">{{ formatTime(turn.called_at) }}</span>
             </div>
           </div>
         </div>
 
       </section>
 
-      <!-- DIVIDER -->
-      <div class="panel-divider"></div>
-
       <!-- ══════════════════════════════════
-           RIGHT PANEL — 35%
+           PANEL VIDEO — 30%
       ══════════════════════════════════ -->
-      <aside class="panel-right">
-
-        <!-- Reloj -->
-        <div class="info-block info-block--clock">
-          <div class="clock-time">{{ currentTime }}</div>
-          <div class="clock-date">{{ currentDate }}</div>
-        </div>
-
-        <div class="info-separator"></div>
-
-        <!-- Turnos en espera -->
-        <div class="info-block info-block--waiting">
-          <div class="waiting-label">En espera</div>
-          <div class="waiting-count">{{ waiting.length }}</div>
-          <div class="waiting-sublabel">turnos pendientes</div>
-        </div>
-
-        <div class="info-separator"></div>
-
-        <!-- Desglose por servicio -->
-        <div class="info-block info-block--services">
-          <div class="services-title">Por servicio</div>
-          <div class="services-list" v-if="waitingByService.length > 0">
-            <div
-              v-for="svc in waitingByService"
-              :key="svc.name"
-              class="service-chip"
-              :style="{ '--svc-color': svc.color }"
-            >
-              <div class="service-chip-dot"></div>
-              <span class="service-chip-name">{{ svc.name }}</span>
-              <span class="service-chip-count">{{ svc.count }}</span>
-            </div>
+      <aside class="video-panel">
+        <div class="video-placeholder">
+          <div class="video-icon">▶</div>
+          <div class="video-title">Tu video aquí</div>
+          <div class="video-hint">
+            Subí tu video desde el<br>panel de administración
           </div>
-          <div v-else class="services-empty">Sin turnos en espera</div>
+          <div class="video-resolution">
+            <span>Resolución ideal</span>
+            <strong>576 × 1020 px</strong>
+          </div>
         </div>
-
-        <!-- Brand footer -->
-        <div class="info-brand">
-          <div class="brand-pulse-ring"></div>
-          <div class="brand-dot"></div>
-          <span class="brand-name">Termy</span>
-        </div>
-
       </aside>
-    </div>
 
+    </div>
   </div>
 </template>
 
@@ -175,19 +120,6 @@ const lastCalledTurn = computed(() => {
   return recentCalled.value.length > 0 ? recentCalled.value[0] : null;
 });
 
-// Conteo de turnos en espera agrupados por servicio
-const waitingByService = computed(() => {
-  const map = {};
-  for (const turn of waiting.value) {
-    const key   = turn.service?.name  || 'Sin servicio';
-    const color = turn.service?.color || '#64748b';
-    if (!map[key]) {
-      map[key] = { name: key, color, count: 0 };
-    }
-    map[key].count++;
-  }
-  return Object.values(map);
-});
 
 // ──────────────────────────────
 // Audio notification
@@ -371,28 +303,30 @@ onUnmounted(() => {
 
 <style scoped>
 /* ═══════════════════════════════════════
-   FUENTE — Solo en elementos de texto,
-   NO en <i> para preservar Font Awesome
+   FUENTE
 ═══════════════════════════════════════ */
+.display-root,
 .display-root div,
 .display-root p,
 .display-root span,
-.display-root aside,
-.display-root section {
+.display-root section,
+.display-root aside {
   font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
 }
 
 /* ═══════════════════════════════════════
-   CSS VARIABLES
+   CSS VARIABLES — tema claro
 ═══════════════════════════════════════ */
 .display-root {
-  --color-bg:             #0a0f1e;
-  --color-panel-bg:       rgba(255, 255, 255, 0.03);
-  --color-divider:        rgba(255, 255, 255, 0.08);
-  --color-text-primary:   #f1f5f9;
-  --color-text-secondary: #94a3b8;
-  --color-text-muted:     #475569;
-  --color-accent:         #3b82f6;
+  --bg-root:        #f8fafc;
+  --bg-card:        #ffffff;
+  --bg-topbar:      #1e40af;
+  --bg-video:       #1e293b;
+  --text-primary:   #0f172a;
+  --text-secondary: #334155;
+  --text-muted:     #64748b;
+  --text-faint:     #94a3b8;
+  --divider:        #e2e8f0;
 }
 
 /* ═══════════════════════════════════════
@@ -402,112 +336,125 @@ onUnmounted(() => {
   width: 100vw;
   height: 100vh;
   overflow: hidden;
-  position: relative;
-  background: var(--color-bg);
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-root);
   margin: 0;
   padding: 0;
 }
 
 /* ═══════════════════════════════════════
-   BACKGROUND — Grid + Glow
+   TOP BAR
 ═══════════════════════════════════════ */
-.display-bg {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  z-index: 0;
+.top-bar {
+  flex: 0 0 7%;
+  background: var(--bg-topbar);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 2.2%;
 }
 
-.bg-grid {
-  position: absolute;
-  inset: 0;
-  background-image:
-    linear-gradient(rgba(59, 130, 246, 0.04) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(59, 130, 246, 0.04) 1px, transparent 1px);
-  background-size: 80px 80px;
+.bar-clock {
+  font-size: clamp(14px, 2.4vw, 28px);
+  font-weight: 900;
+  color: #ffffff;
+  letter-spacing: 0.04em;
+  font-variant-numeric: tabular-nums;
 }
 
-.bg-radial-glow {
-  position: absolute;
-  width: 60vw;
-  height: 60vh;
-  top: 50%;
-  left: 32%;
-  transform: translate(-50%, -50%);
-  background: radial-gradient(ellipse, rgba(59, 130, 246, 0.07) 0%, transparent 65%);
-  filter: blur(60px);
+.bar-date {
+  font-size: clamp(8px, 1vw, 13px);
+  font-weight: 600;
+  color: #bfdbfe;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.bar-weather-pill {
+  background: rgba(255, 255, 255, 0.13);
+  border-radius: 999px;
+  padding: 0.25em 0.9em;
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+}
+
+.weather-icon {
+  font-size: clamp(12px, 1.3vw, 18px);
+}
+
+.weather-temp {
+  font-size: clamp(11px, 1.4vw, 18px);
+  font-weight: 900;
+  color: #fef08a;
+}
+
+.weather-city {
+  font-size: clamp(7px, 0.8vw, 11px);
+  font-weight: 600;
+  color: #bfdbfe;
+  letter-spacing: 0.08em;
 }
 
 /* ═══════════════════════════════════════
-   MAIN LAYOUT — Dos columnas
+   MAIN AREA
 ═══════════════════════════════════════ */
-.display-layout {
-  position: relative;
-  z-index: 1;
-  width: 100%;
-  height: 100%;
+.main-area {
+  flex: 1;
   display: flex;
   flex-direction: row;
-  padding: 2rem 2.5rem;
-  gap: 0;
-}
-
-.panel-left {
-  flex: 0 0 65%;
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
   overflow: hidden;
-  padding-right: 2.5rem;
-}
-
-.panel-divider {
-  flex: 0 0 1px;
-  background: var(--color-divider);
-  align-self: stretch;
-  margin: 0 0.25rem;
-}
-
-.panel-right {
-  flex: 0 0 35%;
-  display: flex;
-  flex-direction: column;
-  padding-left: 2.5rem;
-  overflow: hidden;
+  background: var(--bg-root);
 }
 
 /* ═══════════════════════════════════════
-   LEFT PANEL — HERO CARD
+   TURNS PANEL — 70%
 ═══════════════════════════════════════ */
-.hero-section {
-  flex-shrink: 0;
+.turns-panel {
+  flex: 0 0 70%;
+  display: flex;
+  flex-direction: column;
+  padding: 2.2% 2.5% 1.8% 2.5%;
+  border-right: 1px solid var(--divider);
+  overflow: hidden;
 }
 
+/* ─── HERO CARD ─── */
 .hero-card {
-  position: relative;
+  flex: 1;
+  background: var(--bg-card);
+  border-radius: 14px;
+  border-left: 7px solid var(--svc-color, #2563eb);
+  box-shadow: 0 2px 16px rgba(0, 0, 0, 0.07);
   display: flex;
   overflow: hidden;
-  border-radius: 20px;
-  min-height: 38vh;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  position: relative;
+  margin-bottom: 2%;
+  min-height: 0;
 }
 
 .hero-card--pulsing {
-  animation: heroGlow 2s ease-in-out infinite;
+  animation: heroPulse 2.5s ease-in-out infinite;
 }
 
-.hero-accent-bar {
-  flex: 0 0 10px;
-  background: var(--svc-color, #3b82f6);
+@keyframes heroPulse {
+  0%, 100% {
+    box-shadow: 0 2px 16px rgba(0, 0, 0, 0.07);
+  }
+  50% {
+    box-shadow:
+      0 4px 28px rgba(0, 0, 0, 0.12),
+      0 0 0 4px color-mix(in srgb, var(--svc-color, #2563eb) 12%, transparent);
+  }
 }
 
 .hero-body {
-  flex: 1;
-  padding: 2.25rem 2.5rem;
+  padding: 5% 6%;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  justify-content: center;
+  flex: 1;
   position: relative;
   z-index: 1;
 }
@@ -515,392 +462,230 @@ onUnmounted(() => {
 .hero-eyebrow {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
-  font-size: 0.9rem;
-  font-weight: 700;
-  letter-spacing: 0.22em;
-  text-transform: uppercase;
-  color: var(--color-text-secondary);
+  gap: 0.6em;
+  margin-bottom: 1.5%;
 }
 
 .eyebrow-dot {
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  background: var(--svc-color, #3b82f6);
-  display: inline-block;
+  background: var(--svc-color, #2563eb);
   flex-shrink: 0;
-  animation: dotPulse 1.5s ease-in-out infinite;
+  animation: dotPulse 1.6s ease-in-out infinite;
 }
 
-.hero-service-name {
-  font-size: 1.6rem;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-  line-height: 1.2;
+@keyframes dotPulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.4; transform: scale(1.45); }
 }
 
-.hero-ticket-number {
-  font-size: clamp(5rem, 10vw, 9rem);
-  font-weight: 900;
-  color: var(--color-text-primary);
-  letter-spacing: -0.03em;
-  line-height: 1;
-}
-
-.hero-window {
-  display: flex;
-  align-items: baseline;
-  gap: 0.75rem;
-  margin-top: 0.25rem;
-}
-
-.hero-window-label {
-  font-size: 1rem;
-  font-weight: 600;
-  color: var(--color-text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-}
-
-.hero-window-value {
-  font-size: 2.2rem;
+.eyebrow-text {
+  font-size: clamp(8px, 0.85vw, 11px);
   font-weight: 800;
-  color: var(--color-text-primary);
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.hero-service {
+  font-size: clamp(12px, 1.4vw, 18px);
+  font-weight: 700;
+  color: var(--svc-color, #2563eb);
+  margin-bottom: 0.5%;
+}
+
+.hero-number {
+  font-size: clamp(52px, 8.5vw, 96px);
+  font-weight: 900;
+  color: var(--text-primary);
+  line-height: 1;
+  letter-spacing: -0.03em;
+  margin-bottom: 2.5%;
+}
+
+.hero-station {
+  font-size: clamp(16px, 2vw, 28px);
+  font-weight: 900;
+  color: var(--text-secondary);
+  letter-spacing: -0.01em;
 }
 
 .hero-time {
-  font-size: 1rem;
+  font-size: clamp(8px, 0.8vw, 10px);
   font-weight: 500;
-  color: var(--color-text-muted);
+  color: var(--text-faint);
   margin-top: auto;
-  padding-top: 0.5rem;
+  padding-top: 3%;
 }
 
-.hero-glow-overlay {
+.hero-glow {
   position: absolute;
   inset: 0;
-  z-index: 0;
   pointer-events: none;
+  z-index: 0;
   background: radial-gradient(
-    ellipse at 80% 50%,
-    color-mix(in srgb, var(--svc-color, #3b82f6) 12%, transparent) 0%,
+    ellipse at 88% 50%,
+    color-mix(in srgb, var(--svc-color, #2563eb) 7%, transparent) 0%,
     transparent 60%
   );
 }
 
 /* Estado vacío */
 .hero-empty {
+  flex: 1;
+  background: var(--bg-card);
+  border-radius: 14px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  min-height: 38vh;
-  gap: 1.5rem;
+  gap: 1.2rem;
   opacity: 0.4;
+  margin-bottom: 2%;
 }
 
 .hero-empty-icon {
-  font-size: 5rem;
-  color: var(--color-text-secondary);
+  font-size: clamp(32px, 4vw, 56px);
 }
 
 .hero-empty-text {
-  font-size: 1.8rem;
+  font-size: clamp(12px, 1.5vw, 20px);
   font-weight: 600;
-  color: var(--color-text-secondary);
+  color: var(--text-muted);
   margin: 0;
 }
 
-/* ═══════════════════════════════════════
-   LEFT PANEL — HISTORIAL
-═══════════════════════════════════════ */
+/* ─── HISTORIAL ─── */
 .history-section {
-  flex: 1;
-  overflow: hidden;
+  flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
-  min-height: 0;
-}
-
-.history-header {
-  flex-shrink: 0;
+  gap: 1.5%;
 }
 
 .history-label {
-  font-size: 0.78rem;
+  font-size: clamp(6px, 0.65vw, 9px);
   font-weight: 700;
-  letter-spacing: 0.2em;
+  letter-spacing: 0.22em;
   text-transform: uppercase;
-  color: var(--color-text-muted);
+  color: var(--text-faint);
+  margin-bottom: 0.5%;
 }
 
 .history-list {
   display: flex;
   flex-direction: column;
-  gap: 0.55rem;
-  overflow: hidden;
+  gap: 1.2%;
 }
 
 .history-card {
-  background: rgba(255, 255, 255, 0.035);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-left: 4px solid var(--svc-color, #3b82f6);
-  border-radius: 12px;
-  padding: 0.8rem 1.25rem;
+  background: var(--bg-card);
+  border-radius: 10px;
+  border-left: 5px solid var(--svc-color, #2563eb);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+  padding: 1.8% 3%;
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: 3%;
 }
 
-.history-card:nth-child(1) { animation: slideInTop 0.35s 0ms   ease both; }
-.history-card:nth-child(2) { animation: slideInTop 0.35s 60ms  ease both; }
-.history-card:nth-child(3) { animation: slideInTop 0.35s 120ms ease both; }
-.history-card:nth-child(4) { animation: slideInTop 0.35s 180ms ease both; }
-.history-card:nth-child(5) { animation: slideInTop 0.35s 240ms ease both; }
-
-.history-color-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: var(--svc-color, #3b82f6);
-  flex-shrink: 0;
-}
-
-.history-ticket {
-  font-size: 1.7rem;
+.hist-ticket {
+  font-size: clamp(13px, 1.6vw, 20px);
   font-weight: 900;
-  color: var(--color-text-primary);
-  min-width: 8rem;
+  color: var(--text-primary);
+  min-width: 20%;
 }
 
-.history-service {
-  font-size: 1rem;
+.hist-service {
+  font-size: clamp(8px, 0.9vw, 12px);
   font-weight: 600;
-  color: var(--color-text-secondary);
+  color: var(--text-muted);
   flex: 1;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.history-window {
-  font-size: 1rem;
+.hist-station {
+  font-size: clamp(8px, 0.9vw, 12px);
   font-weight: 700;
-  color: var(--color-text-primary);
+  color: var(--text-secondary);
   white-space: nowrap;
 }
 
-.history-time {
-  font-size: 0.875rem;
+.hist-time {
+  font-size: clamp(7px, 0.72vw, 9px);
   font-weight: 500;
-  color: var(--color-text-muted);
+  color: var(--text-faint);
   flex-shrink: 0;
 }
 
 /* ═══════════════════════════════════════
-   RIGHT PANEL — INFO BLOCKS
+   VIDEO PANEL — 30%
 ═══════════════════════════════════════ */
-.info-block {
-  padding: 1.5rem 0;
-  flex-shrink: 0;
-}
-
-.info-separator {
-  height: 1px;
-  background: var(--color-divider);
-  flex-shrink: 0;
-}
-
-/* Reloj */
-.info-block--clock {
-  text-align: center;
-  padding-top: 0.75rem;
-}
-
-.clock-time {
-  font-size: clamp(3rem, 5vw, 4.5rem);
-  font-weight: 900;
-  color: var(--color-text-primary);
-  letter-spacing: 0.03em;
-  line-height: 1;
-  font-variant-numeric: tabular-nums;
-}
-
-.clock-date {
-  font-size: 0.95rem;
-  font-weight: 500;
-  color: var(--color-text-secondary);
-  margin-top: 0.5rem;
-  text-transform: capitalize;
-}
-
-/* Turnos en espera */
-.info-block--waiting {
-  text-align: center;
-}
-
-.waiting-label {
-  font-size: 0.78rem;
-  font-weight: 700;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  color: var(--color-text-muted);
-  margin-bottom: 0.35rem;
-}
-
-.waiting-count {
-  font-size: clamp(3.5rem, 6vw, 5.5rem);
-  font-weight: 900;
-  color: var(--color-accent);
-  line-height: 1;
-}
-
-.waiting-sublabel {
-  font-size: 0.85rem;
-  font-weight: 500;
-  color: var(--color-text-muted);
-  margin-top: 0.3rem;
-}
-
-/* Desglose por servicio */
-.info-block--services {
+.video-panel {
   flex: 1;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  padding-bottom: 0;
-}
-
-.services-title {
-  font-size: 0.75rem;
-  font-weight: 700;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  color: var(--color-text-muted);
-  margin-bottom: 0.85rem;
-  flex-shrink: 0;
-}
-
-.services-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  overflow: hidden;
-}
-
-.service-chip {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 10px;
-  padding: 0.65rem 1rem;
-}
-
-.service-chip-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: var(--svc-color, #3b82f6);
-  flex-shrink: 0;
-}
-
-.service-chip-name {
-  flex: 1;
-  font-size: 1rem;
-  font-weight: 600;
-  color: var(--color-text-secondary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.service-chip-count {
-  font-size: 1.2rem;
-  font-weight: 900;
-  color: var(--color-text-primary);
-}
-
-.services-empty {
-  font-size: 0.9rem;
-  font-weight: 500;
-  color: var(--color-text-muted);
-}
-
-/* Brand footer */
-.info-brand {
-  margin-top: auto;
-  padding: 1.5rem 0 0;
+  background: var(--bg-video);
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.75rem;
-  position: relative;
-  flex-shrink: 0;
 }
 
-.brand-pulse-ring {
-  position: absolute;
-  width: 28px;
-  height: 28px;
-  border: 2px solid rgba(59, 130, 246, 0.3);
-  border-radius: 50%;
-  animation: brandRing 2.5s ease-in-out infinite;
+.video-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.8em;
+  padding: 2em;
+  text-align: center;
 }
 
-.brand-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: var(--color-accent);
-  position: relative;
-  z-index: 1;
+.video-icon {
+  font-size: clamp(28px, 4vw, 56px);
+  color: #334155;
+  line-height: 1;
 }
 
-.brand-name {
-  font-size: 0.75rem;
-  font-weight: 800;
-  letter-spacing: 0.35em;
+.video-title {
+  font-size: clamp(9px, 1vw, 14px);
+  font-weight: 700;
+  letter-spacing: 0.2em;
   text-transform: uppercase;
-  color: var(--color-text-muted);
+  color: #475569;
 }
 
-/* ═══════════════════════════════════════
-   ANIMACIONES
-═══════════════════════════════════════ */
-
-/* Hero card — glow pulsante en color del servicio */
-@keyframes heroGlow {
-  0%, 100% {
-    box-shadow:
-      0 8px 40px rgba(0, 0, 0, 0.4),
-      0 0 60px color-mix(in srgb, var(--svc-color, #3b82f6) 20%, transparent);
-  }
-  50% {
-    box-shadow:
-      0 12px 60px rgba(0, 0, 0, 0.5),
-      0 0 100px color-mix(in srgb, var(--svc-color, #3b82f6) 35%, transparent);
-  }
+.video-hint {
+  font-size: clamp(7px, 0.75vw, 10px);
+  font-weight: 500;
+  color: #334155;
+  line-height: 1.7;
 }
 
-/* Dot del eyebrow — señal de atención */
-@keyframes dotPulse {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50%       { opacity: 0.5; transform: scale(1.35); }
+.video-resolution {
+  background: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  padding: 0.5em 1.1em;
+  margin-top: 0.4em;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2em;
 }
 
-/* Cards del historial — slide desde arriba */
-@keyframes slideInTop {
-  from { opacity: 0; transform: translateY(-12px); }
-  to   { opacity: 1; transform: translateY(0); }
+.video-resolution span {
+  font-size: clamp(7px, 0.72vw, 9px);
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  color: #64748b;
 }
 
-/* Brand ring — respiración suave */
-@keyframes brandRing {
-  0%, 100% { transform: scale(1); opacity: 0.3; }
-  50%       { transform: scale(1.6); opacity: 0; }
+.video-resolution strong {
+  font-size: clamp(9px, 1vw, 13px);
+  font-weight: 700;
+  color: #94a3b8;
 }
 </style>
