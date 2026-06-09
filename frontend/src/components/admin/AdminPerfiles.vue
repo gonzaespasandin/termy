@@ -31,7 +31,7 @@
             <th>Nombre</th>
             <th>Ubicación</th>
             <th>Servicios</th>
-            <th>Pide nombre</th>
+            <th>Pide DNI</th>
             <th>Estado</th>
             <th>Acciones</th>
           </tr>
@@ -68,8 +68,8 @@
               </div>
             </td>
             <td>
-              <span class="status-badge" :class="profile.ask_customer_name !== false ? 'status-yes' : 'status-no'">
-                {{ profile.ask_customer_name !== false ? 'Sí' : 'No' }}
+              <span class="status-badge" :class="profile.ask_customer_dni !== false ? 'status-yes' : 'status-no'">
+                {{ profile.ask_customer_dni !== false ? 'Sí' : 'No' }}
               </span>
             </td>
             <td>
@@ -190,12 +190,12 @@
 
               <div class="form-group">
                 <label class="toggle-label">
-                  <div class="toggle-switch" :class="{ 'toggle-on': form.ask_customer_name }" @click="form.ask_customer_name = !form.ask_customer_name" style="--toggle-color: #f59e0b;">
+                  <div class="toggle-switch" :class="{ 'toggle-on': form.ask_customer_dni }" @click="form.ask_customer_dni = !form.ask_customer_dni" style="--toggle-color: #f59e0b;">
                     <div class="toggle-thumb"></div>
                   </div>
                   <div>
-                    <span class="toggle-text">Pedir nombre del cliente</span>
-                    <p class="toggle-hint">Si está desactivado, el ticket se imprime directamente sin solicitar nombre</p>
+                    <span class="toggle-text">Pedir DNI del cliente</span>
+                    <p class="toggle-hint">Si está desactivado, el ticket se imprime directamente sin solicitar DNI</p>
                   </div>
                 </label>
               </div>
@@ -329,7 +329,7 @@ const defaultForm = () => ({
   location: '',
   services: [],
   is_active: true,
-  ask_customer_name: true,
+  ask_customer_dni: true,
   logo: null,
   logoFile: null,
   logoPreview: null,
@@ -420,7 +420,7 @@ const openModal = async (profile = null) => {
       location: profile.location || '',
       services: Array.isArray(profile.services) ? profile.services : [],
       is_active: profile.is_active !== undefined ? profile.is_active : true,
-      ask_customer_name: profile.ask_customer_name !== undefined ? profile.ask_customer_name : true,
+      ask_customer_dni: profile.ask_customer_dni !== undefined ? profile.ask_customer_dni : true,
       logo: profile.logo || null,
       logoFile: null,
       logoPreview: null,
@@ -465,7 +465,7 @@ const save = async () => {
       formData.append('location', form.value.location || '')
       form.value.services.forEach((id) => formData.append('services[]', id))
       formData.append('is_active', form.value.is_active ? '1' : '0')
-      formData.append('ask_customer_name', form.value.ask_customer_name ? '1' : '0')
+      formData.append('ask_customer_dni', form.value.ask_customer_dni ? '1' : '0')
       formData.append('logo', form.value.logoFile)
       formData.append('background_type', form.value.background_type)
       formData.append('background_color_1', form.value.background_color_1)
@@ -486,7 +486,7 @@ const save = async () => {
         location: form.value.location || '',
         services: form.value.services,
         is_active: form.value.is_active,
-        ask_customer_name: form.value.ask_customer_name,
+        ask_customer_dni: form.value.ask_customer_dni,
         background_type: form.value.background_type,
         background_color_1: form.value.background_color_1,
       }

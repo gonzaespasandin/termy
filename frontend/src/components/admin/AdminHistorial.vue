@@ -71,7 +71,7 @@
             <th class="th-expand"></th>
             <th>Ticket</th>
             <th>Servicio</th>
-            <th>Cliente</th>
+            <th>DNI</th>
             <th>Estado</th>
             <th>Operador</th>
             <th>Espera</th>
@@ -108,7 +108,7 @@
                   <span>{{ turn.service?.name || 'N/A' }}</span>
                 </div>
               </td>
-              <td class="td-muted">{{ turn.customer_name || '—' }}</td>
+              <td class="td-muted">{{ formatDni(turn.customer_dni) }}</td>
               <td>
                 <span class="status-badge" :class="getStatusColor(turn.status)">{{ getStatusLabel(turn.status) }}</span>
               </td>
@@ -304,6 +304,14 @@ const getTimelineIconColor = (color) => {
   }
   return map[color] || 'dot--gray'
 }
+
+const formatDni = (raw) => {
+  if (!raw) return '—';
+  const d = String(raw).replace(/\D/g, '').slice(0, 8);
+  if (d.length <= 2) return d;
+  if (d.length <= 5) return `${d.slice(0, 2)}.${d.slice(2)}`;
+  return `${d.slice(0, 2)}.${d.slice(2, 5)}.${d.slice(5)}`;
+};
 
 const formatDuration = (minutes) => {
   if (minutes === null || minutes === undefined) return '—'
