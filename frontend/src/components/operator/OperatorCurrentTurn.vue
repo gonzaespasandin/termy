@@ -50,9 +50,9 @@
           {{ currentTurn.service.name }}
         </div>
 
-        <div v-if="currentTurn.customer_name" class="customer-row">
-          <i class="fas fa-user"></i>
-          <span>{{ currentTurn.customer_name }}</span>
+        <div v-if="currentTurn.customer_dni" class="customer-row">
+          <i class="fas fa-id-card"></i>
+          <span>DNI: {{ formatDni(currentTurn.customer_dni) }}</span>
         </div>
 
         <div class="timestamps-grid">
@@ -105,9 +105,9 @@
           {{ currentTurn.service.name }}
         </div>
 
-        <div v-if="currentTurn.customer_name" class="customer-row">
-          <i class="fas fa-user"></i>
-          <span>{{ currentTurn.customer_name }}</span>
+        <div v-if="currentTurn.customer_dni" class="customer-row">
+          <i class="fas fa-id-card"></i>
+          <span>DNI: {{ formatDni(currentTurn.customer_dni) }}</span>
         </div>
 
         <div class="elapsed-time">
@@ -203,6 +203,14 @@ onUnmounted(() => {
 })
 
 // ── Helpers ───────────────────────────────────────────────────
+const formatDni = (raw) => {
+  if (!raw) return '';
+  const d = String(raw).replace(/\D/g, '').slice(0, 8);
+  if (d.length <= 2) return d;
+  if (d.length <= 5) return `${d.slice(0, 2)}.${d.slice(2)}`;
+  return `${d.slice(0, 2)}.${d.slice(2, 5)}.${d.slice(5)}`;
+};
+
 const formatTime = (datetime) => {
   if (!datetime) return '-'
   return new Date(datetime).toLocaleTimeString('es-AR', {
