@@ -15,7 +15,7 @@ class Turn extends Model
         'ticket_number',
         'status',
         'priority',
-        'customer_name',
+        'customer_dni',
         'issued_at',
         'called_at',
         'attended_at',

@@ -15,7 +15,7 @@ class Totem extends Model
         'location',
         'services',
         'is_active',
-        'ask_customer_name',
+        'ask_customer_dni',
         'logo',
         'background_type',
         'background_color_1',
@@ -25,7 +25,7 @@ class Totem extends Model
     protected $casts = [
         'services' => 'array',
         'is_active' => 'boolean',
-        'ask_customer_name' => 'boolean',
+        'ask_customer_dni' => 'boolean',
     ];
 
     // Relaciones
