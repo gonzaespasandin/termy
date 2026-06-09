@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use App\Models\Display;
 use App\Models\Turn;
 use App\Models\Service;
 
@@ -40,14 +41,14 @@ class TurnController extends Controller
     {
         $request->validate([
             'service_id' => 'required|exists:services,id',
-            'customer_name' => 'nullable|string|max:20',
+            'customer_dni' => 'nullable|string|digits:8',
             'priority' => 'nullable|in:normal,priority',
             'totem_id' => 'nullable|exists:totems,id',
         ], [
             'service_id.required' => 'El servicio es requerido',
             'service_id.exists' => 'El servicio no existe',
-            'customer_name.string' => 'El nombre del cliente debe ser una cadena de texto',
-            'customer_name.max' => 'El nombre del cliente debe tener menos de 20 caracteres',
+            'customer_dni.string' => 'El DNI debe ser una cadena de texto',
+            'customer_dni.digits' => 'El DNI debe tener exactamente 8 digitos',
             'priority.in' => 'La prioridad debe ser normal o priority',
             'totem_id.exists' => 'El totem no existe',
         ]);
@@ -69,7 +70,7 @@ class TurnController extends Controller
             'ticket_number' => $ticketNumber,
             'status' => 'waiting',
             'priority' => $request->priority ?? 'normal',
-            'customer_name' => $request->customer_name ?: null, // null si está vacío
+            'customer_dni' => $request->customer_dni ?: null, // null si está vacío
             'totem_id' => $request->totem_id,
             'issued_at' => now(), // Hora de emisión del ticket (nunca se modifica)
         ]);
@@ -238,6 +239,44 @@ class TurnController extends Controller
             'waiting' => $waiting,
             'in_progress' => $inProgress,
             'recent_called' => $recentCalled, // Nueva lista para el display
+        ]);
+    }
+
+    /**
+     * Cola de espera PÚBLICA filtrada por una pantalla (display)
+     * GET /api/displays/{id}/queue
+     */
+    public function queueForDisplay($id)
+    {
+        $display = Display::findOrFail($id);
+        $serviceIds = $display->services ?: [];
+
+        $waiting = Turn::with('service')
+            ->waiting()
+            ->today()
+            ->whereIn('service_id', $serviceIds)
+            ->orderBy('priority', 'desc')
+            ->orderBy('created_at', 'asc')
+            ->get();
+
+        $inProgress = Turn::with('service', 'window')
+            ->inProgress()
+            ->today()
+            ->whereIn('service_id', $serviceIds)
+            ->get();
+
+        $recentCalled = Turn::with('service', 'window')
+            ->whereIn('status', ['called', 'in_progress'])
+            ->today()
+            ->whereIn('service_id', $serviceIds)
+            ->orderBy('called_at', 'desc')
+            ->limit(10)
+            ->get();
+
+        return response()->json([
+            'waiting'       => $waiting,
+            'in_progress'   => $inProgress,
+            'recent_called' => $recentCalled,
         ]);
     }
 
