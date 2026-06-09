@@ -16,6 +16,7 @@ class TotemSeeder extends Seeder
                 'location' => 'Planta Baja - Recepción Principal',
                 'services' => [1, 2, 3, 4, 5],
                 'is_active' => true,
+                'ask_customer_dni' => false,
             ],
             [
                 'name' => 'Totem Pediatría-Kinesiología',

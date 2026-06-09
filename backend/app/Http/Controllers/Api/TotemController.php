@@ -60,7 +60,7 @@ class TotemController extends Controller
             'services' => 'required|array|min:1',
             'services.*' => 'exists:services,id',
             'is_active' => 'sometimes|boolean',
-            'ask_customer_name' => 'sometimes|boolean',
+            'ask_customer_dni' => 'sometimes|boolean',
             'logo' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
             'background_type' => 'nullable|in:solid,gradient',
             'background_color_1' => 'nullable|string|max:20',
@@ -68,18 +68,18 @@ class TotemController extends Controller
         ]);
 
         $data = $request->except(['logo']);
-        
+
         // Convertir strings '1'/'0' a boolean (desde FormData)
         if (isset($data['is_active'])) {
             $data['is_active'] = filter_var($data['is_active'], FILTER_VALIDATE_BOOLEAN);
         } else {
             $data['is_active'] = true; // Por defecto activo
         }
-        
-        if (isset($data['ask_customer_name'])) {
-            $data['ask_customer_name'] = filter_var($data['ask_customer_name'], FILTER_VALIDATE_BOOLEAN);
+
+        if (isset($data['ask_customer_dni'])) {
+            $data['ask_customer_dni'] = filter_var($data['ask_customer_dni'], FILTER_VALIDATE_BOOLEAN);
         } else {
-            $data['ask_customer_name'] = true; // Por defecto pide nombre
+            $data['ask_customer_dni'] = true; // Por defecto pide DNI
         }
         
         // Asegurarse de que services sea un array
@@ -127,7 +127,7 @@ class TotemController extends Controller
             'services' => 'sometimes|array|min:1',
             'services.*' => 'exists:services,id',
             'is_active' => 'sometimes|boolean',
-            'ask_customer_name' => 'sometimes|boolean',
+            'ask_customer_dni' => 'sometimes|boolean',
             'logo' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
             'background_type' => 'nullable|in:solid,gradient',
             'background_color_1' => 'nullable|string|max:20',
@@ -135,13 +135,13 @@ class TotemController extends Controller
         ]);
 
         $data = $request->except(['logo', '_method']);
-        
+
         // Convertir strings '1'/'0' a boolean (desde FormData)
         if (isset($data['is_active'])) {
             $data['is_active'] = filter_var($data['is_active'], FILTER_VALIDATE_BOOLEAN);
         }
-        if (isset($data['ask_customer_name'])) {
-            $data['ask_customer_name'] = filter_var($data['ask_customer_name'], FILTER_VALIDATE_BOOLEAN);
+        if (isset($data['ask_customer_dni'])) {
+            $data['ask_customer_dni'] = filter_var($data['ask_customer_dni'], FILTER_VALIDATE_BOOLEAN);
         }
         
         // Asegurarse de que services sea un array

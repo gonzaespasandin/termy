@@ -58,7 +58,7 @@ class HistoryController extends Controller
             return [
                 'id' => $turn->id,
                 'ticket_number' => $turn->ticket_number,
-                'customer_name' => $turn->customer_name,
+                'customer_dni' => $turn->customer_dni,
                 'status' => $turn->status,
                 'priority' => $turn->priority,
                 'notes' => $turn->notes,
@@ -119,7 +119,7 @@ class HistoryController extends Controller
         return response()->json([
             'id' => $turn->id,
             'ticket_number' => $turn->ticket_number,
-            'customer_name' => $turn->customer_name,
+            'customer_dni' => $turn->customer_dni,
             'status' => $turn->status,
             'priority' => $turn->priority,
             'notes' => $turn->notes,
