@@ -112,21 +112,16 @@
       </main>
     </div>
 
-    <!-- ═══════════ MODAL: CONFIRMAR TURNO ═══════════ -->
+    <!-- ═══════════ MODAL 1: CONFIRMAR TURNO (sin DNI) ═══════════ -->
     <transition name="modal-fade">
       <div
-        v-if="selectedService && askCustomerName"
+        v-if="showConfirmModal && selectedService"
         class="modal-backdrop"
-        @click.self="selectedService = null"
+        @click.self="showConfirmModal = false"
       >
         <transition name="modal-scale" appear>
           <div class="modal-card">
-            <!-- Franja superior con color del servicio -->
-            <div class="modal-band" :style="{ backgroundColor: selectedService.color }">
-              <div class="modal-band-icon">
-                <span :style="{ color: selectedService.color }">{{ selectedService.code }}</span>
-              </div>
-            </div>
+            <div class="modal-band" :style="{ backgroundColor: selectedService.color }"></div>
 
             <div class="modal-body">
               <p class="modal-eyebrow">Está por solicitar un turno para:</p>
@@ -134,33 +129,91 @@
                 {{ selectedService.name }}
               </h2>
 
-              <div class="modal-input-wrapper">
-                <label class="modal-input-label">Su nombre (opcional)</label>
-                <input
-                  v-model="customerName"
-                  type="text"
-                  placeholder="Ingrese su nombre..."
-                  class="modal-input"
-                />
-              </div>
-
               <div class="modal-actions">
                 <button
                   class="btn-primary"
                   :style="{ backgroundColor: selectedService.color }"
                   :disabled="confirming"
-                  @click="confirmTurn"
+                  @click="confirmFromModal"
                 >
                   <i :class="confirming ? 'fa fa-spinner fa-spin' : 'fa fa-check-circle'"></i>
                   {{ confirming ? 'Generando turno...' : 'Confirmar Turno' }}
                 </button>
-                <button
-                  class="btn-secondary"
-                  @click="selectedService = null"
-                >
+                <button class="btn-secondary" @click="showConfirmModal = false">
                   <i class="fa fa-times"></i>
                   Cancelar
                 </button>
+              </div>
+            </div>
+          </div>
+        </transition>
+      </div>
+    </transition>
+
+    <!-- ═══════════ MODAL 2: TECLADO NUMÉRICO DNI ═══════════ -->
+    <transition name="modal-fade">
+      <div
+        v-if="selectedService && askCustomerDni"
+        class="modal-backdrop"
+        @click.self="selectedService = null"
+      >
+        <transition name="modal-scale" appear>
+          <div class="modal-card dni-modal">
+            <div class="dni-split">
+              <!-- Panel izquierdo (~40%) -->
+              <div class="dni-left">
+                <div class="dni-band" :style="{ backgroundColor: selectedService.color }"></div>
+                <p class="modal-eyebrow">Ingrese su DNI</p>
+                <h2 class="dni-service-name" :style="{ color: selectedService.color }">
+                  {{ selectedService.name }}
+                </h2>
+
+                <div class="dni-display" :class="{ 'dni-display--filled': customerDni.length > 0 }">
+                  {{ dniDisplay }}
+                </div>
+
+                <div class="dni-left-actions">
+                  <button
+                    class="btn-primary"
+                    :style="{ backgroundColor: selectedService.color }"
+                    :disabled="!dniValid || confirming"
+                    @click="confirmTurn"
+                  >
+                    <i :class="confirming ? 'fa fa-spinner fa-spin' : 'fa fa-check-circle'"></i>
+                    {{ confirming ? 'Generando...' : 'Confirmar' }}
+                  </button>
+                  <button class="btn-secondary" @click="selectedService = null">
+                    <i class="fa fa-times"></i>
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+
+              <!-- Panel derecho (~60%): teclado 3×4 -->
+              <div class="dni-right">
+                <div class="keypad-grid">
+                  <button class="keypad-key" @click="appendDigit(1)">1</button>
+                  <button class="keypad-key" @click="appendDigit(2)">2</button>
+                  <button class="keypad-key" @click="appendDigit(3)">3</button>
+                  <button class="keypad-key" @click="appendDigit(4)">4</button>
+                  <button class="keypad-key" @click="appendDigit(5)">5</button>
+                  <button class="keypad-key" @click="appendDigit(6)">6</button>
+                  <button class="keypad-key" @click="appendDigit(7)">7</button>
+                  <button class="keypad-key" @click="appendDigit(8)">8</button>
+                  <button class="keypad-key" @click="appendDigit(9)">9</button>
+                  <button class="keypad-key keypad-key--action" @click="deleteDigit">
+                    <i class="fa fa-delete-left"></i>
+                  </button>
+                  <button class="keypad-key" @click="appendDigit(0)">0</button>
+                  <button
+                    class="keypad-key keypad-key--confirm"
+                    :style="dniValid ? { backgroundColor: selectedService.color, color: '#fff' } : {}"
+                    :disabled="!dniValid"
+                    @click="confirmTurn"
+                  >
+                    <i class="fa fa-check"></i>
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -274,13 +327,14 @@ const totemCode = ref('');
 const totemId = ref(null);
 const totemName = ref('');
 const totemData = ref(null);
-const askCustomerName = ref(true);
+const askCustomerDni = ref(true);
 
 // Estado de servicios y turnos
 const services = ref([]);
 const loading = ref(true);
 const selectedService = ref(null);
-const customerName = ref('');
+const customerDni = ref('');
+const showConfirmModal = ref(false);
 const generatedTurn = ref(null);
 
 // Estado de impresión
@@ -298,6 +352,20 @@ const showError = (message) => {
   errorMessage.value = message;
   setTimeout(() => { errorMessage.value = ''; }, 4000);
 };
+
+// ──────────────────────────────
+// DNI — formato XX.XXX.XXX, máx 8 dígitos
+// ──────────────────────────────
+const formatDni = (raw) => {
+  const d = String(raw).replace(/\D/g, '').slice(0, 8);
+  if (d.length <= 2) return d;
+  if (d.length <= 5) return `${d.slice(0, 2)}.${d.slice(2)}`;
+  return `${d.slice(0, 2)}.${d.slice(2, 5)}.${d.slice(5)}`;
+};
+const dniDisplay = computed(() => (customerDni.value ? formatDni(customerDni.value) : '__.___.___'));
+const dniValid = computed(() => customerDni.value.length === 8);
+const appendDigit = (d) => { if (customerDni.value.length < 8) customerDni.value += String(d); };
+const deleteDigit = () => { customerDni.value = customerDni.value.slice(0, -1); };
 
 // ──────────────────────────────
 // Grid layout
@@ -419,7 +487,7 @@ const loadTotemServices = async () => {
     totemName.value = response.data.totem.name;
     services.value = response.data.services;
     totemConfigured.value = true;
-    askCustomerName.value = response.data.totem.ask_customer_name !== false;
+    askCustomerDni.value = response.data.totem.ask_customer_dni !== false;
   } catch (error) {
     console.error('Error cargando servicios del totem:', error);
     showError('Error al cargar servicios del totem. Mostrando todos los servicios.');
@@ -443,23 +511,31 @@ const loadAllServices = async () => {
   }
 };
 
-const selectService = async (service) => {
+const selectService = (service) => {
   if (confirming.value) return;
   selectedService.value = service;
-  customerName.value = '';
-  if (!askCustomerName.value) {
-    await confirmTurn();
+  customerDni.value = '';
+  if (askCustomerDni.value) {
+    // Feature 2: el modal del teclado DNI se abre vía v-if (selectedService && askCustomerDni)
+    return;
   }
+  // Feature 1: pedir confirmación antes de generar el turno
+  showConfirmModal.value = true;
+};
+
+const confirmFromModal = async () => {
+  showConfirmModal.value = false;
+  await confirmTurn();
 };
 
 const confirmTurn = async () => {
   if (confirming.value) return;
   confirming.value = true;
   try {
-    const finalCustomerName = askCustomerName.value ? (customerName.value || '') : '';
+    const finalCustomerDni = askCustomerDni.value ? (customerDni.value || '') : '';
     const response = await createTurn({
       service_id: selectedService.value.id,
-      customer_name: finalCustomerName,
+      customer_dni: finalCustomerDni,
       totem_id: totemId.value,
     });
     generatedTurn.value = response.data;
@@ -479,11 +555,11 @@ const printTicket = async () => {
   printError.value = '';
   printSuccess.value = false;
   try {
-    const finalCustomerName = askCustomerName.value ? (customerName.value || '') : '';
+    const finalCustomerDni = askCustomerDni.value ? (customerDni.value || '') : '';
     const result = await printService.printTicket({
       ticket_number: generatedTurn.value.ticket_number,
       service_name: generatedTurn.value.service.name,
-      customer_name: finalCustomerName,
+      customer_dni: finalCustomerDni,
     });
     if (result.success) {
       printSuccess.value = true;
@@ -501,7 +577,8 @@ const resetAndPrint = async () => { await printTicket(); };
 
 const closeTicketModal = () => {
   generatedTurn.value = null;
-  customerName.value = '';
+  customerDni.value = '';
+  showConfirmModal.value = false;
   printError.value = '';
   printSuccess.value = false;
 };
@@ -1211,5 +1288,142 @@ const formatTime = (datetime) => {
 .modal-scale-leave-to {
   opacity: 0;
   transform: scale(0.92) translateY(12px);
+}
+
+/* ═══════════════════════════════════════
+   MODAL DNI — SPLIT HORIZONTAL + TECLADO
+═══════════════════════════════════════ */
+.dni-modal {
+  max-width: 880px;
+}
+
+.dni-split {
+  display: flex;
+  align-items: stretch;
+  min-height: 480px;
+}
+
+/* Panel izquierdo (~40%) */
+.dni-left {
+  flex: 0 0 40%;
+  position: relative;
+  padding: 2.5rem 2rem 2rem;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid #f1f5f9;
+}
+
+.dni-band {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 8px;
+}
+
+.dni-service-name {
+  font-size: 1.75rem;
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  margin: 0.25rem 0 1.75rem;
+}
+
+.dni-display {
+  font-size: 2.6rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: #cbd5e1;
+  text-align: center;
+  padding: 1.1rem 0.75rem;
+  border: 2px dashed #e2e8f0;
+  border-radius: 16px;
+  background: #f8fafc;
+  font-variant-numeric: tabular-nums;
+  user-select: none;
+}
+
+.dni-display--filled {
+  color: #1a202c;
+  border-style: solid;
+  border-color: #cbd5e1;
+  background: #ffffff;
+}
+
+.dni-left-actions {
+  margin-top: auto;
+  padding-top: 1.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+/* Panel derecho (~60%): teclado */
+.dni-right {
+  flex: 1;
+  padding: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.keypad-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(4, 1fr);
+  gap: 1rem;
+  width: 100%;
+  height: 100%;
+}
+
+.keypad-key {
+  border: none;
+  border-radius: 18px;
+  background: #f1f5f9;
+  color: #1a202c;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 2.2rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 84px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+  transition: transform 0.08s ease, background 0.12s ease;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+.keypad-key:active {
+  transform: scale(0.92);
+  background: #e2e8f0;
+}
+
+.keypad-key--action {
+  background: #fef3c7;
+  color: #b45309;
+  font-size: 1.8rem;
+}
+
+.keypad-key--action:active {
+  background: #fde68a;
+}
+
+.keypad-key--confirm {
+  background: #dcfce7;
+  color: #15803d;
+  font-size: 1.8rem;
+}
+
+.keypad-key--confirm:active {
+  transform: scale(0.92);
+}
+
+.keypad-key--confirm:disabled {
+  background: #f1f5f9;
+  color: #cbd5e1;
+  cursor: not-allowed;
+  transform: none;
 }
 </style>
