@@ -64,11 +64,11 @@ print(win32print.GetDefaultPrinter())
  * @param {Object} ticketData - Datos del ticket
  * @param {string} ticketData.ticket_number - Número del ticket
  * @param {string} ticketData.service_name - Nombre del servicio
- * @param {string} [ticketData.customer_name] - Nombre del cliente
+ * @param {string} [ticketData.customer_dni] - DNI del cliente
  * @returns {Promise<void>}
  */
 async function printTicket(ticketData) {
-  const { ticket_number, service_name, customer_name = '' } = ticketData;
+  const { ticket_number, service_name, customer_dni = '' } = ticketData;
   
   console.log(`🖨️ Imprimiendo ticket: ${ticket_number}`);
   
@@ -85,7 +85,7 @@ async function printTicket(ticketData) {
       PYTHON_SCRIPT,
       ticket_number,
       service_name,
-      customer_name || '',
+      customer_dni || '',
       config.companyName
     ];
     
@@ -129,7 +129,7 @@ async function testPrint() {
   return printTicket({
     ticket_number: 'TEST-001',
     service_name: 'Prueba de Impresión',
-    customer_name: 'Test Automático'
+    customer_dni: '44770488'
   });
 }
 

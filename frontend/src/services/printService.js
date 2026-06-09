@@ -61,7 +61,7 @@ export async function isPrintServiceAvailable() {
  * @param {Object} ticketData - Datos del ticket
  * @param {string} ticketData.ticket_number - Número del ticket (ej: "AC-001")
  * @param {string} ticketData.service_name - Nombre del servicio
- * @param {string} [ticketData.customer_name] - Nombre del cliente (opcional)
+ * @param {string} [ticketData.customer_dni] - DNI del cliente (opcional)
  * @returns {Promise<{success: boolean, message?: string, error?: string}>}
  */
 export async function printTicket(ticketData) {
@@ -147,7 +147,7 @@ export async function testPrint() {
     return await printTicket({
       ticket_number: 'TEST-001',
       service_name: 'Prueba de Impresión',
-      customer_name: 'Test Automático'
+      customer_dni: '44770488'
     });
   }
 }

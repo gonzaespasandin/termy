@@ -20,7 +20,7 @@ try {
    * @param {Object} ticketData - Datos del ticket
    * @param {string} ticketData.ticket_number - Número del ticket (ej: "AC-001")
    * @param {string} ticketData.service_name - Nombre del servicio
-   * @param {string} [ticketData.customer_name] - Nombre del cliente (opcional)
+   * @param {string} [ticketData.customer_dni] - DNI del cliente (opcional)
    * @returns {Promise<{success: boolean, message?: string, error?: string}>}
    */
   printTicket: (ticketData) => ipcRenderer.invoke('print-ticket', ticketData),
