@@ -1,0 +1,3 @@
+# Claude Code / Superpowers local tooling state (machine-specific, not project config)
+.claude/
+.superpowers/
