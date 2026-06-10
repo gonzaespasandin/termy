@@ -110,7 +110,11 @@ async function printTicket(ticketData) {
         resolve();
       } else {
         console.error(`❌ Error al imprimir (código ${code})`);
-        reject(new Error(stderr || `Error de impresión (código ${code})`));
+        if (stderr.includes('SIN_PAPEL')) {
+          reject(new Error('SIN_PAPEL'));
+        } else {
+          reject(new Error(stderr || `Error de impresión (código ${code})`));
+        }
       }
     });
     

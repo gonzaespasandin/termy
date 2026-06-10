@@ -221,6 +221,31 @@
       </div>
     </transition>
 
+    <!-- ═══════════ OVERLAY: ERROR DE CONEXIÓN ═══════════ -->
+    <transition name="modal-fade">
+      <div v-if="showConnectionError" class="connection-error-overlay">
+        <div class="connection-error-icon">
+          <i class="fa fa-triangle-exclamation"></i>
+        </div>
+        <h2 class="connection-error-title">No se pudo generar el turno</h2>
+        <p class="connection-error-text">Por favor, solicite ayuda a un asistente.</p>
+        <div class="connection-error-actions">
+          <button
+            class="btn-primary connection-error-btn"
+            :disabled="confirming"
+            @click="confirmTurn"
+          >
+            <i :class="confirming ? 'fa fa-spinner fa-spin' : 'fa fa-rotate-right'"></i>
+            {{ confirming ? 'Reintentando...' : 'Reintentar' }}
+          </button>
+          <button class="btn-secondary connection-error-btn" @click="cancelConnectionError">
+            <i class="fa fa-house"></i>
+            Volver al inicio
+          </button>
+        </div>
+      </div>
+    </transition>
+
     <!-- ═══════════ MODAL: TICKET GENERADO ═══════════ -->
     <transition name="modal-fade">
       <div v-if="generatedTurn" class="modal-backdrop">
@@ -336,6 +361,7 @@ const selectedService = ref(null);
 const customerDni = ref('');
 const showConfirmModal = ref(false);
 const generatedTurn = ref(null);
+const showConnectionError = ref(false);
 
 // Estado de impresión
 const printing = ref(false);
@@ -528,6 +554,12 @@ const confirmFromModal = async () => {
   await confirmTurn();
 };
 
+// Distingue errores de red/timeout/5xx (servidor inalcanzable) de errores
+// de validación (4xx), que se siguen mostrando como toast.
+const isConnectionError = (error) => {
+  return !error.response || error.response.status >= 500;
+};
+
 const confirmTurn = async () => {
   if (confirming.value) return;
   confirming.value = true;
@@ -540,13 +572,25 @@ const confirmTurn = async () => {
     });
     generatedTurn.value = response.data;
     selectedService.value = null;
+    showConnectionError.value = false;
     await printTicket();
   } catch (error) {
     console.error('Error creando turno:', error);
-    showError('Error al crear turno');
+    if (isConnectionError(error)) {
+      showConnectionError.value = true;
+    } else {
+      showError('Error al crear turno');
+    }
   } finally {
     confirming.value = false;
   }
+};
+
+const cancelConnectionError = () => {
+  showConnectionError.value = false;
+  selectedService.value = null;
+  customerDni.value = '';
+  showConfirmModal.value = false;
 };
 
 const printTicket = async () => {
@@ -567,7 +611,11 @@ const printTicket = async () => {
       throw new Error(result.error || 'Error al imprimir');
     }
   } catch (error) {
-    printError.value = error.message || 'Error desconocido al imprimir';
+    if (error.message === 'SIN_PAPEL') {
+      printError.value = `⚠️ Sin papel en la impresora. Su turno ${generatedTurn.value.ticket_number} fue registrado — avise a un asistente para recargar la impresora y recibir su comprobante.`;
+    } else {
+      printError.value = `No se pudo imprimir el ticket. Su turno ${generatedTurn.value.ticket_number} fue registrado igual — avise a un asistente para recibir su comprobante.`;
+    }
   } finally {
     printing.value = false;
   }
@@ -1425,5 +1473,58 @@ const formatTime = (datetime) => {
   color: #cbd5e1;
   cursor: not-allowed;
   transform: none;
+}
+
+/* ═══════════════════════════════════════
+   OVERLAY: ERROR DE CONEXIÓN
+═══════════════════════════════════════ */
+.connection-error-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 2rem;
+  color: #ffffff;
+}
+
+.connection-error-icon {
+  font-size: 5rem;
+  color: #ef4444;
+  margin-bottom: 1.5rem;
+  animation: connection-error-pulse 2s infinite;
+}
+
+@keyframes connection-error-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.7; transform: scale(0.95); }
+}
+
+.connection-error-title {
+  font-size: 2.5rem;
+  font-weight: 800;
+  margin: 0 0 1rem;
+}
+
+.connection-error-text {
+  font-size: 1.4rem;
+  color: rgba(255, 255, 255, 0.8);
+  margin: 0 0 2.5rem;
+}
+
+.connection-error-actions {
+  display: flex;
+  gap: 1rem;
+  width: 100%;
+  max-width: 480px;
+}
+
+.connection-error-btn {
+  font-size: 1.3rem;
+  padding: 1.25rem 1.5rem;
 }
 </style>

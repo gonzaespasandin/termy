@@ -18,11 +18,33 @@ import win32print
 import win32ui
 import win32con
 
+# PRINTER_STATUS_PAPER_OUT no siempre esta expuesto segun la version de pywin32;
+# 0x00000010 es el valor estandar de winspool.h
+PRINTER_STATUS_PAPER_OUT = getattr(win32print, "PRINTER_STATUS_PAPER_OUT", 0x00000010)
+
+
+def _printer_sin_papel(hprinter):
+    """Devuelve True si el spooler reporta PRINTER_STATUS_PAPER_OUT para esta impresora.
+
+    Best-effort: depende de que el driver de la impresora reporte el bit de
+    estado correctamente. Si la consulta falla, devuelve False (no rompe el flujo).
+    """
+    if not hprinter:
+        return False
+    try:
+        info = win32print.GetPrinter(hprinter, 2)
+        status = info.get("Status", 0)
+        return bool(status & PRINTER_STATUS_PAPER_OUT)
+    except Exception:
+        return False
+
+
 def imprimir_ticket(ticket_numero, nombre_servicio, nombre_cliente="", nombre_empresa="Dayco Gaming S.A."):
     """
     Imprime un ticket usando la API nativa de Windows
     Funciona correctamente con impresoras termicas
     """
+    hprinter = None
     try:
         # 1. Obtener la impresora predeterminada
         printer_name = win32print.GetDefaultPrinter()
@@ -145,12 +167,21 @@ def imprimir_ticket(ticket_numero, nombre_servicio, nombre_cliente="", nombre_em
         dc.EndPage()
         dc.EndDoc()
         dc.DeleteDC()
-        
+
+        if _printer_sin_papel(hprinter):
+            win32print.ClosePrinter(hprinter)
+            print("[ERROR] Impresora sin papel", file=sys.stderr)
+            print("SIN_PAPEL", file=sys.stderr)
+            return False
+
+        win32print.ClosePrinter(hprinter)
         print(f"[OK] Ticket {ticket_numero} impreso correctamente")
         return True
 
     except Exception as e:
         print(f"[ERROR] Error al imprimir: {str(e)}", file=sys.stderr)
+        if _printer_sin_papel(hprinter):
+            print("SIN_PAPEL", file=sys.stderr)
         return False
 
 
