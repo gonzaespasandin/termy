@@ -12,7 +12,7 @@
     <div class="filter-card">
       <div class="filter-grid">
         <div class="filter-field">
-          <label class="field-label">Nº Ticket</label>
+          <label class="field-label">Ticket / DNI</label>
           <input v-model="filters.search" type="text" placeholder="Ej: AC-001" class="field-input" @keyup.enter="applyFilters" />
         </div>
         <div class="filter-field">

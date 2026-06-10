@@ -16,9 +16,13 @@ class HistoryController extends Controller
     {
         $query = Turn::with(['service', 'window', 'attendedByUser', 'totem']);
 
-        // Búsqueda por número de ticket
+        // Búsqueda por número de ticket o DNI del cliente
         if ($request->has('search') && $request->search) {
-            $query->where('ticket_number', 'like', '%' . $request->search . '%');
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('ticket_number', 'like', '%' . $search . '%')
+                    ->orWhere('customer_dni', 'like', '%' . $search . '%');
+            });
         }
 
         // Filtro por estado
