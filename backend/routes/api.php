@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\SseController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\HistoryController;
 use App\Http\Controllers\Api\DisplaySettingsController;
+use App\Http\Controllers\Api\DisplayController;
 
 // Rutas públicas (sin autenticación)
 Route::get('/services', [ServiceController::class, 'index']);
@@ -27,6 +28,10 @@ Route::get('/sse/operator', [SseController::class, 'operator']);
 
 // Obtener servicios de un totem por código (para identificar totem en HomeView)
 Route::get('/totems/{code}/services', [TotemController::class, 'servicesByCode']);
+
+// Pantallas (displays) — público para la TV
+Route::get('/displays/{id}', [DisplayController::class, 'publicShow']);
+Route::get('/displays/{id}/queue', [TurnController::class, 'queueForDisplay']);
 
 // Autenticación
 Route::post('/login', [AuthController::class, 'login']);
@@ -58,6 +63,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('admin/users', UserController::class);
     Route::apiResource('admin/turns', TurnController::class);
     Route::apiResource('admin/totems', TotemController::class);
+    Route::apiResource('admin/displays', DisplayController::class);
     Route::apiResource('admin/windows', WindowController::class);
     
     // Acciones de operadores sobre turnos

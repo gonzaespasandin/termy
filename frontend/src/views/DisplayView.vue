@@ -2,14 +2,14 @@
   <div class="display-root">
 
     <!-- ═══════════ TOP BAR ═══════════ -->
-    <div class="top-bar">
+    <div class="top-bar" :style="{ '--bg-topbar': topbarColor }">
       <div class="bar-clock">{{ currentTime }}</div>
       <div class="bar-date">{{ currentDate }}</div>
-      <div class="bar-weather">
+      <div class="bar-weather" v-if="settings.weather_lat">
         <div class="bar-weather-pill">
-          <span class="weather-icon">⛅</span>
-          <span class="weather-temp">–°C</span>
-          <span class="weather-city">–</span>
+          <span class="weather-temp">{{ weatherTemp !== null ? weatherTemp + '°C' : '…' }}</span>
+          <span class="weather-sep">·</span>
+          <span class="weather-city">{{ settings.weather_city }}</span>
         </div>
       </div>
     </div>
@@ -30,16 +30,12 @@
           :style="{ '--svc-color': lastCalledTurn.service?.color || '#2563eb' }"
         >
           <div class="hero-body">
-            <div class="hero-eyebrow">
-              <span class="eyebrow-dot"></span>
-              <span class="eyebrow-text">Llamando ahora</span>
+            <div class="hero-number-row">
+              <div class="hero-number">{{ lastCalledTurn.ticket_number }}</div>
+              <div class="hero-station" v-if="lastCalledTurn.window">
+                {{ lastCalledTurn.window.name }}
+              </div>
             </div>
-            <div class="hero-service">{{ lastCalledTurn.service?.name }}</div>
-            <div class="hero-number">{{ lastCalledTurn.ticket_number }}</div>
-            <div class="hero-station" v-if="lastCalledTurn.window">
-              {{ lastCalledTurn.window.name }}
-            </div>
-            <div class="hero-time">Llamado a las {{ formatTime(lastCalledTurn.called_at) }}</div>
           </div>
           <div class="hero-glow"></div>
         </div>
@@ -52,18 +48,15 @@
 
         <!-- HISTORIAL: últimos 3 turnos llamados anteriores -->
         <div class="history-section" v-if="recentCalled.length > 1">
-          <div class="history-label">Llamados anteriores</div>
           <div class="history-list">
             <div
-              v-for="turn in recentCalled.slice(1, 4)"
+              v-for="turn in recentCalled.slice(1, 5)"
               :key="turn.id"
               class="history-card"
               :style="{ '--svc-color': turn.service?.color || '#2563eb' }"
             >
               <span class="hist-ticket">{{ turn.ticket_number }}</span>
-              <span class="hist-service">{{ turn.service?.name }}</span>
               <span class="hist-station" v-if="turn.window">{{ turn.window.name }}</span>
-              <span class="hist-time">{{ formatTime(turn.called_at) }}</span>
             </div>
           </div>
         </div>
@@ -103,8 +96,9 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, computed } from 'vue';
-import { getQueue, getDisplaySettings } from '../api';
+import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
+import { useRoute } from 'vue-router';
+import { getQueue, getDisplaySettings, getDisplayQueue, getDisplayInfo } from '../api';
 
 // ──────────────────────────────
 // Reactive state
@@ -115,13 +109,21 @@ const recentCalled = ref([]);
 const currentTime  = ref('');
 const currentDate  = ref('');
 const lastCalledId = ref(null);
-const settings = ref({ video_enabled: true, video_path: null, video_url: null });
+const settings = ref({ video_enabled: true, video_url: null, weather_city: null, weather_lat: null, weather_lon: null });
+
+const weatherTemp = ref(null);
+const weatherIcon = ref('⛅');
+const topbarColor = ref('#1e40af');
 
 const USE_SSE = false; // Cambiar a true para usar SSE en vez de polling
+
+const route = useRoute();
+const displayId = computed(() => route.params.id || null);
 
 let eventSource = null;
 let intervalId  = null;
 let clockId     = null;
+let weatherId   = null;
 
 // ──────────────────────────────
 // Computed
@@ -134,49 +136,100 @@ const lastCalledTurn = computed(() => {
 
 const showVideoPanel = computed(() => settings.value.video_enabled);
 
+// ──────────────────────────────
+// Weather
+// ──────────────────────────────
+const weatherCodeToIcon = (code) => {
+  if (code === 0)                        return '☀️';
+  if (code <= 3)                         return '⛅';
+  if (code <= 48)                        return '🌫️';
+  if (code <= 67)                        return '🌧️';
+  if (code <= 77)                        return '❄️';
+  if (code <= 82)                        return '🌦️';
+  return '⛈️';
+};
+
+const fetchWeather = async () => {
+  const { weather_lat, weather_lon } = settings.value;
+  if (!weather_lat || !weather_lon) return;
+  try {
+    const res = await fetch(
+      `https://api.open-meteo.com/v1/forecast?latitude=${weather_lat}&longitude=${weather_lon}&current=temperature_2m,weather_code&timezone=auto`
+    );
+    const data = await res.json();
+    weatherTemp.value = Math.round(data.current.temperature_2m);
+    weatherIcon.value = weatherCodeToIcon(data.current.weather_code);
+  } catch (err) {
+    console.error('Error fetching weather:', err);
+  }
+};
 
 // ──────────────────────────────
 // Audio notification
 // ──────────────────────────────
-const playNotificationSound = () => {
-  const audioContext = new (window.AudioContext || window.webkitAudioContext)();
 
-  const oscillator = audioContext.createOscillator();
-  const gainNode   = audioContext.createGain();
+// AudioContext persiste para evitar que el browser lo suspenda en cada llamada
+let audioCtx = null;
 
-  oscillator.connect(gainNode);
-  gainNode.connect(audioContext.destination);
+const getAudioContext = () => {
+  if (!audioCtx) {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  return audioCtx;
+};
 
-  oscillator.type = 'sine';
-  oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
-  oscillator.frequency.exponentialRampToValueAtTime(600, audioContext.currentTime + 0.1);
+// Desbloquea el AudioContext con la primera interacción del usuario
+const unlockAudio = () => {
+  const ctx = getAudioContext();
+  if (ctx.state === 'suspended') ctx.resume();
+  document.removeEventListener('click',      unlockAudio);
+  document.removeEventListener('touchstart', unlockAudio);
+  document.removeEventListener('keydown',    unlockAudio);
+};
 
-  gainNode.gain.setValueAtTime(0, audioContext.currentTime);
-  gainNode.gain.linearRampToValueAtTime(0.3, audioContext.currentTime + 0.05);
-  gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+const playNotificationSound = async () => {
+  const ctx = getAudioContext();
+  // Forzar resume por si el contexto sigue suspendido (pantallas sin interacción)
+  if (ctx.state === 'suspended') await ctx.resume();
 
-  oscillator.start(audioContext.currentTime);
-  oscillator.stop(audioContext.currentTime + 0.5);
+  // Chime tipo aeropuerto: C5 → E5 → G5
+  const notes = [523.25, 659.25, 783.99];
 
-  // Segundo tono (eco)
-  setTimeout(() => {
-    const oscillator2 = audioContext.createOscillator();
-    const gainNode2   = audioContext.createGain();
+  notes.forEach((freq, i) => {
+    const t   = ctx.currentTime + i * 0.22;
+    const osc  = ctx.createOscillator();
+    const gain = ctx.createGain();
 
-    oscillator2.connect(gainNode2);
-    gainNode2.connect(audioContext.destination);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
 
-    oscillator2.type = 'sine';
-    oscillator2.frequency.setValueAtTime(900, audioContext.currentTime);
-    oscillator2.frequency.exponentialRampToValueAtTime(700, audioContext.currentTime + 0.1);
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(freq, t);
 
-    gainNode2.gain.setValueAtTime(0, audioContext.currentTime);
-    gainNode2.gain.linearRampToValueAtTime(0.25, audioContext.currentTime + 0.05);
-    gainNode2.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.4);
+    gain.gain.setValueAtTime(0,    t);
+    gain.gain.linearRampToValueAtTime(0.7, t + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.75);
 
-    oscillator2.start(audioContext.currentTime);
-    oscillator2.stop(audioContext.currentTime + 0.4);
-  }, 150);
+    osc.start(t);
+    osc.stop(t + 0.75);
+  });
+};
+
+// ──────────────────────────────
+// Queue loading (polling)
+// ──────────────────────────────
+const loadDisplayInfo = async () => {
+  if (!displayId.value) {
+    topbarColor.value = '#1e40af';
+    return;
+  }
+  try {
+    const res = await getDisplayInfo(displayId.value);
+    topbarColor.value = res.data.topbar_color || '#1e40af';
+  } catch (err) {
+    console.error('Error cargando info de pantalla:', err);
+    topbarColor.value = '#1e40af';
+  }
 };
 
 // ──────────────────────────────
@@ -184,7 +237,9 @@ const playNotificationSound = () => {
 // ──────────────────────────────
 const loadQueue = async () => {
   try {
-    const response = await getQueue();
+    const response = displayId.value
+      ? await getDisplayQueue(displayId.value)
+      : await getQueue();
     waiting.value    = response.data.waiting    || [];
     inProgress.value = response.data.in_progress || [];
 
@@ -274,10 +329,9 @@ const updateClock = () => {
     hour12: false,
   });
   currentDate.value = now.toLocaleDateString('es-AR', {
-    weekday: 'long',
+    day: '2-digit',
+    month: '2-digit',
     year: 'numeric',
-    month: 'long',
-    day: 'numeric',
   });
 };
 
@@ -296,13 +350,20 @@ const formatTime = (datetime) => {
 // Lifecycle
 // ──────────────────────────────
 onMounted(async () => {
+  document.addEventListener('click',      unlockAudio);
+  document.addEventListener('touchstart', unlockAudio);
+  document.addEventListener('keydown',    unlockAudio);
+
   try {
     const res = await getDisplaySettings();
     settings.value = res.data;
+    fetchWeather();
+    weatherId = setInterval(fetchWeather, 10 * 60 * 1000); // cada 10 min
   } catch (err) {
     console.error('Error cargando display settings:', err);
   }
 
+  await loadDisplayInfo();
   loadQueue();
   updateClock();
 
@@ -315,10 +376,21 @@ onMounted(async () => {
   clockId = setInterval(updateClock, 1000);
 });
 
+watch(() => route.params.id, async () => {
+  lastCalledId.value = null;
+  await loadDisplayInfo();
+  await loadQueue();
+});
+
 onUnmounted(() => {
   if (eventSource) eventSource.close();
   if (intervalId)  clearInterval(intervalId);
   if (clockId)     clearInterval(clockId);
+  if (weatherId)   clearInterval(weatherId);
+  document.removeEventListener('click',      unlockAudio);
+  document.removeEventListener('touchstart', unlockAudio);
+  document.removeEventListener('keydown',    unlockAudio);
+  if (audioCtx) { audioCtx.close(); audioCtx = null; }
 });
 </script>
 
@@ -377,7 +449,7 @@ onUnmounted(() => {
 }
 
 .bar-clock {
-  font-size: clamp(14px, 2.4vw, 28px);
+  font-size: clamp(22px, 3vw, 42px);
   font-weight: 900;
   color: #ffffff;
   letter-spacing: 0.04em;
@@ -385,37 +457,37 @@ onUnmounted(() => {
 }
 
 .bar-date {
-  font-size: clamp(8px, 1vw, 13px);
-  font-weight: 600;
+  font-size: clamp(16px, 2vw, 26px);
+  font-weight: 700;
   color: #bfdbfe;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 .bar-weather-pill {
   background: rgba(255, 255, 255, 0.13);
   border-radius: 999px;
-  padding: 0.25em 0.9em;
+  padding: 0.3em 1.1em;
   display: flex;
   align-items: center;
   gap: 0.5em;
 }
 
-.weather-icon {
-  font-size: clamp(12px, 1.3vw, 18px);
-}
-
 .weather-temp {
-  font-size: clamp(11px, 1.4vw, 18px);
+  font-size: clamp(16px, 2vw, 26px);
   font-weight: 900;
   color: #fef08a;
 }
 
+.weather-sep {
+  font-size: clamp(16px, 2vw, 26px);
+  font-weight: 400;
+  color: #93c5fd;
+}
+
 .weather-city {
-  font-size: clamp(7px, 0.8vw, 11px);
-  font-weight: 600;
+  font-size: clamp(16px, 2vw, 26px);
+  font-weight: 700;
   color: #bfdbfe;
-  letter-spacing: 0.08em;
 }
 
 /* ═══════════════════════════════════════
@@ -443,7 +515,9 @@ onUnmounted(() => {
 
 /* ─── HERO CARD ─── */
 .hero-card {
-  flex: 1;
+  flex: 0 0 auto;
+  min-height: 28%;
+  max-height: 38%;
   background: var(--bg-card);
   border-radius: 14px;
   border-left: 7px solid var(--svc-color, #2563eb);
@@ -452,7 +526,6 @@ onUnmounted(() => {
   overflow: hidden;
   position: relative;
   margin-bottom: 2%;
-  min-height: 0;
 }
 
 .hero-card--pulsing {
@@ -471,7 +544,7 @@ onUnmounted(() => {
 }
 
 .hero-body {
-  padding: 5% 6%;
+  padding: 0 6%;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -516,28 +589,28 @@ onUnmounted(() => {
   margin-bottom: 0.5%;
 }
 
+.hero-number-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4%;
+}
+
 .hero-number {
-  font-size: clamp(52px, 8.5vw, 96px);
+  font-size: clamp(40px, 6vw, 80px);
   font-weight: 900;
   color: var(--text-primary);
   line-height: 1;
   letter-spacing: -0.03em;
-  margin-bottom: 2.5%;
 }
 
 .hero-station {
-  font-size: clamp(16px, 2vw, 28px);
+  font-size: clamp(40px, 6vw, 80px);
   font-weight: 900;
   color: var(--text-secondary);
-  letter-spacing: -0.01em;
-}
-
-.hero-time {
-  font-size: clamp(8px, 0.8vw, 10px);
-  font-weight: 500;
-  color: var(--text-faint);
-  margin-top: auto;
-  padding-top: 3%;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  text-align: right;
 }
 
 .hero-glow {
@@ -554,7 +627,9 @@ onUnmounted(() => {
 
 /* Estado vacío */
 .hero-empty {
-  flex: 1;
+  flex: 0 0 auto;
+  min-height: 40%;
+  max-height: 54%;
   background: var(--bg-card);
   border-radius: 14px;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
@@ -580,67 +655,49 @@ onUnmounted(() => {
 
 /* ─── HISTORIAL ─── */
 .history-section {
-  flex-shrink: 0;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.history-list {
+  flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   gap: 1.5%;
 }
 
-.history-label {
-  font-size: clamp(6px, 0.65vw, 9px);
-  font-weight: 700;
-  letter-spacing: 0.22em;
-  text-transform: uppercase;
-  color: var(--text-faint);
-  margin-bottom: 0.5%;
-}
-
-.history-list {
-  display: flex;
-  flex-direction: column;
-  gap: 1.2%;
-}
-
 .history-card {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
   background: var(--bg-card);
   border-radius: 10px;
-  border-left: 5px solid var(--svc-color, #2563eb);
+  border-left: 6px solid var(--svc-color, #2563eb);
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
-  padding: 1.8% 3%;
+  padding: 0 4%;
   display: flex;
   align-items: center;
-  gap: 3%;
+  gap: 4%;
 }
 
 .hist-ticket {
-  font-size: clamp(13px, 1.6vw, 20px);
+  font-size: clamp(20px, 2.8vw, 38px);
   font-weight: 900;
   color: var(--text-primary);
-  min-width: 20%;
-}
-
-.hist-service {
-  font-size: clamp(8px, 0.9vw, 12px);
-  font-weight: 600;
-  color: var(--text-muted);
-  flex: 1;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  line-height: 1;
 }
 
 .hist-station {
-  font-size: clamp(8px, 0.9vw, 12px);
-  font-weight: 700;
+  font-size: clamp(20px, 2.8vw, 38px);
+  font-weight: 900;
   color: var(--text-secondary);
+  line-height: 1;
+  margin-left: auto;
   white-space: nowrap;
-}
-
-.hist-time {
-  font-size: clamp(7px, 0.72vw, 9px);
-  font-weight: 500;
-  color: var(--text-faint);
-  flex-shrink: 0;
 }
 
 /* ═══════════════════════════════════════

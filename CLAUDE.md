@@ -297,18 +297,24 @@ Use these skills (via the `Skill` tool) when working on the corresponding areas:
 
 ---
 
-## Future Architecture — Channels
+## Displays CRUD (implemented)
 
-**Current limitation:** All totems, operator stations, and display screens share a single global queue. Every totem creates turns visible to all operators that have that service, and the display shows all turns regardless of physical location.
+Each **display** is an independent TV screen with its own set of services. Addressed by numeric id: `/display/1`, `/display/2`, etc. `/display` without id shows all services (fallback).
 
-**Target model — Channels:** A "channel" groups a set of totems, operator windows, and display screens that operate independently. Example: a 3-floor hospital with channel A (floor 1 totem + 2 cashiers + 1 display), channel B (floor 2), channel C (floor 3). Turns issued by a totem in channel A are only visible to operators and displays in channel A.
+**Implemented entities:**
+- `displays` table: `id`, `name`, `services` (JSON array of service IDs), `topbar_color` (hex), `is_active`.
+- Model: `app/Models/Display.php` — casts `services` as array, helpers `getServicesModels()`, `canShowService($id)`.
+- Controller: `app/Http/Controllers/Api/DisplayController.php` — full CRUD (`admin/displays` apiResource) + public `publicShow($id)`.
+- Filtered queue: `TurnController::queueForDisplay($id)` — same shape as `queuePublic()` but filtered by `whereIn('service_id', $display->services)`.
+- Public routes: `GET /api/displays/{id}` (display info for TV), `GET /api/displays/{id}/queue` (filtered queue).
+- Admin CRUD: `Route::apiResource('admin/displays', DisplayController::class)` — inside `auth:sanctum` group.
+- Frontend: tab "Pantallas" in admin (`AdminDisplays.vue`), route `/display/:id`, `DisplayView` reads `route.params.id` and branches between `getDisplayQueue(id)` and `getQueue()`.
+- Video + weather remain **global** via the `DisplaySettings` singleton (`display_settings` table) — unchanged.
 
-**Design implications for future work:**
-- `turns`, `windows`, `totems`, and display configs must all carry a `channel_id` FK.
-- The operator queue endpoint filters by the operator's channel, not just their services.
-- The display `/display?channel=A` endpoint filters turns by channel.
-- The SSE streams emit per-channel, not globally.
-- The admin panel manages channels as a new entity (CRUD).
-- **Do not design new features that couple global state further** — keep per-entity config (video, settings) scoped in a way that can be migrated to per-channel later with a FK addition.
+**What Displays does NOT yet do (longer-term Channels vision):**
+- Does not scope `windows` (operator stations) or `totems` — they are still global.
+- Operator queues are not per-display — operators still see all their services' turns.
+- SSE streams are not per-display — `USE_SSE = false` is the default; SSE would need to be updated before enabling.
+- Video and weather are shared across all displays (one `DisplaySettings` record, `channel_id = null`).
 
-**Current implementation context:** Display settings (video, layout) are currently global (one per installation). When channels are introduced, `display_settings` will need a `channel_id` (nullable = global default) to support per-channel display configuration.
+**Future Channels architecture (still the long-term target):** A full "channel" would group totems + windows + displays into isolated lanes. This requires `channel_id` FK on `turns`, `windows`, `totems`, and operator queue filtering by channel. The Displays CRUD is a step toward this — each display already has its own service filter — but the full channel isolation of operator stations and totem scoping remains future work.

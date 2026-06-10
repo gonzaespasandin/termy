@@ -86,6 +86,17 @@ export const login = (credentials) => api.post('/login', credentials);
 export const logout = () => api.post('/logout');
 export const getUser = () => api.get('/user');
 
+// CRUD Pantallas / Displays (admin)
+export const getDisplays = () => api.get('/admin/displays');
+export const getDisplay = (id) => api.get(`/admin/displays/${id}`);
+export const createDisplay = (data) => api.post('/admin/displays', data);
+export const updateDisplay = (id, data) => api.put(`/admin/displays/${id}`, data);
+export const deleteDisplay = (id) => api.delete(`/admin/displays/${id}`);
+
+// Pantallas (público — para la TV)
+export const getDisplayInfo = (id) => api.get(`/displays/${id}`);
+export const getDisplayQueue = (id) => api.get(`/displays/${id}/queue`);
+
 // Display settings
 export const getDisplaySettings = () => api.get('/display-settings');
 

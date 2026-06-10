@@ -9,8 +9,21 @@ use Illuminate\Support\Facades\Storage;
 
 class DisplaySettingsController extends Controller
 {
+    private function formatSettings(DisplaySettings $settings): array
+    {
+        return [
+            'video_enabled' => $settings->video_enabled,
+            'video_path'    => $settings->video_path,
+            'video_url'     => $settings->video_path
+                ? url('storage/' . $settings->video_path)
+                : null,
+            'weather_city'  => $settings->weather_city,
+            'weather_lat'   => $settings->weather_lat,
+            'weather_lon'   => $settings->weather_lon,
+        ];
+    }
+
     /**
-     * Retorna la configuración actual del display.
      * GET /api/display-settings — público, sin auth.
      */
     public function show()
@@ -22,20 +35,16 @@ class DisplaySettingsController extends Controller
                 'video_enabled' => true,
                 'video_path'    => null,
                 'video_url'     => null,
+                'weather_city'  => null,
+                'weather_lat'   => null,
+                'weather_lon'   => null,
             ]);
         }
 
-        return response()->json([
-            'video_enabled' => $settings->video_enabled,
-            'video_path'    => $settings->video_path,
-            'video_url'     => $settings->video_path
-                ? Storage::disk('public')->url($settings->video_path)
-                : null,
-        ]);
+        return response()->json($this->formatSettings($settings));
     }
 
     /**
-     * Actualiza la configuración (toggle + upload de video).
      * POST /api/admin/display-settings — auth:sanctum + admin.
      */
     public function update(Request $request)
@@ -47,6 +56,9 @@ class DisplaySettingsController extends Controller
         $request->validate([
             'video_enabled' => 'sometimes|boolean',
             'video'         => 'nullable|mimes:mp4,webm|max:51200',
+            'weather_city'  => 'nullable|string|max:100',
+            'weather_lat'   => 'nullable|numeric|between:-90,90',
+            'weather_lon'   => 'nullable|numeric|between:-180,180',
         ]);
 
         $data = [];
@@ -56,14 +68,20 @@ class DisplaySettingsController extends Controller
         }
 
         if ($request->hasFile('video')) {
-            // Eliminar video anterior si existe
             $existing = DisplaySettings::whereNull('channel_id')->first();
             if ($existing && $existing->video_path) {
                 Storage::disk('public')->delete($existing->video_path);
             }
-
             $path = $request->file('video')->store('display_videos', 'public');
             $data['video_path'] = $path;
+        }
+
+        // Weather fields — allow explicit null to clear them
+        foreach (['weather_city', 'weather_lat', 'weather_lon'] as $field) {
+            if ($request->has($field)) {
+                $val = $request->input($field);
+                $data[$field] = ($val === '' || $val === null) ? null : $val;
+            }
         }
 
         $settings = DisplaySettings::updateOrCreate(
@@ -71,17 +89,10 @@ class DisplaySettingsController extends Controller
             $data
         );
 
-        return response()->json([
-            'video_enabled' => $settings->video_enabled,
-            'video_path'    => $settings->video_path,
-            'video_url'     => $settings->video_path
-                ? Storage::disk('public')->url($settings->video_path)
-                : null,
-        ]);
+        return response()->json($this->formatSettings($settings));
     }
 
     /**
-     * Elimina el video subido (mantiene el toggle intacto).
      * DELETE /api/admin/display-settings/video — auth:sanctum + admin.
      */
     public function deleteVideo()

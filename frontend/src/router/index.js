@@ -11,9 +11,14 @@ const routes = [
         name: 'Home',
         component: HomeView
     },
-    { 
+    {
         path: '/display',
         name: 'Display',
+        component: DisplayView
+    },
+    {
+        path: '/display/:id',
+        name: 'DisplayById',
         component: DisplayView
     },
     {

@@ -2,11 +2,19 @@
 <template>
   <div class="section-content">
 
-    <!-- Header -->
+    <!-- CRUD Pantallas -->
+    <AdminDisplays />
+
+    <!-- Separador -->
+    <div class="section-divider">
+      <span class="section-divider-label">Configuración global</span>
+    </div>
+
+    <!-- Header settings globales -->
     <div class="section-header">
       <div>
-        <h2 class="section-title">Pantalla de Display</h2>
-        <p class="section-subtitle">Configurá el video que se muestra en el panel lateral del display público</p>
+        <h2 class="section-title">Video y clima</h2>
+        <p class="section-subtitle">Configuración global compartida por todas las pantallas</p>
       </div>
     </div>
 
@@ -92,6 +100,59 @@
 
       <div class="setting-divider"></div>
 
+      <!-- Clima -->
+      <div class="setting-row setting-row--column">
+        <div class="setting-info">
+          <div class="setting-label">Clima</div>
+          <div class="setting-desc">Buscá una ciudad para mostrar la temperatura en tiempo real en el display.</div>
+        </div>
+
+        <!-- Buscador -->
+        <div class="weather-search">
+          <input
+            v-model="cityQuery"
+            type="text"
+            class="city-input"
+            placeholder="Ej: Buenos Aires"
+            @keydown.enter="searchCity"
+          />
+          <button class="btn-secondary-sm weather-btn" @click="searchCity" :disabled="searching">
+            <i v-if="searching" class="fas fa-spinner fa-spin"></i>
+            <i v-else class="fas fa-search"></i>
+            Buscar
+          </button>
+        </div>
+
+        <!-- Resultados de búsqueda -->
+        <div v-if="cityResults.length" class="city-results">
+          <div
+            v-for="r in cityResults"
+            :key="r.id"
+            class="city-result"
+            @click="selectCity(r)"
+          >
+            <span class="city-result-name">{{ r.name }}</span>
+            <span class="city-result-detail">{{ [r.admin1, r.country].filter(Boolean).join(', ') }}</span>
+          </div>
+        </div>
+
+        <!-- Ciudad seleccionada -->
+        <div v-if="weatherCity" class="weather-selected">
+          <div class="weather-selected-info">
+            <i class="fas fa-map-marker-alt"></i>
+            <span>{{ weatherCity }}</span>
+          </div>
+          <div v-if="weatherPreviewTemp !== null" class="weather-preview-temp">
+            {{ weatherPreviewTemp }}°C
+          </div>
+          <button class="btn-icon-danger" @click="clearWeather" title="Quitar ciudad">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+      </div>
+
+      <div class="setting-divider"></div>
+
       <!-- Error -->
       <div v-if="saveError" class="form-error">
         <i class="fas fa-exclamation-circle"></i>
@@ -121,6 +182,7 @@
 <script setup>
 import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { getDisplaySettings, updateDisplaySettings, deleteDisplayVideo } from '../../api'
+import AdminDisplays from './AdminDisplays.vue'
 import { useToast } from '../../composables/useToast'
 import { useConfirm } from '../../composables/useConfirm'
 
@@ -138,11 +200,23 @@ const previewUrl     = ref(null)
 const isDragging     = ref(false)
 const fileInput      = ref(null)
 
+// Weather state
+const cityQuery        = ref('')
+const cityResults      = ref([])
+const searching        = ref(false)
+const weatherCity      = ref(null)
+const weatherLat       = ref(null)
+const weatherLon       = ref(null)
+const weatherPreviewTemp = ref(null)
+
 const loadSettings = async () => {
   try {
     const res = await getDisplaySettings()
     videoEnabled.value = res.data.video_enabled
     videoUrl.value     = res.data.video_url || null
+    weatherCity.value  = res.data.weather_city || null
+    weatherLat.value   = res.data.weather_lat  || null
+    weatherLon.value   = res.data.weather_lon  || null
   } catch (err) {
     console.error('Error cargando settings:', err)
     showToast('Error al cargar la configuración', 'error')
@@ -186,6 +260,53 @@ const clearSelectedFile = () => {
   if (fileInput.value) fileInput.value.value = ''
 }
 
+// ── Weather methods ──────────────────────────────────
+const searchCity = async () => {
+  if (!cityQuery.value.trim()) return
+  searching.value = true
+  cityResults.value = []
+  try {
+    const res = await fetch(
+      `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cityQuery.value)}&count=5&language=es&format=json`
+    )
+    const data = await res.json()
+    cityResults.value = data.results || []
+  } catch {
+    showToast('Error al buscar la ciudad', 'error')
+  } finally {
+    searching.value = false
+  }
+}
+
+const selectCity = async (city) => {
+  cityResults.value = []
+  cityQuery.value   = ''
+  weatherCity.value = city.name
+  weatherLat.value  = city.latitude
+  weatherLon.value  = city.longitude
+  weatherPreviewTemp.value = null
+
+  try {
+    const res = await fetch(
+      `https://api.open-meteo.com/v1/forecast?latitude=${city.latitude}&longitude=${city.longitude}&current=temperature_2m&timezone=auto`
+    )
+    const data = await res.json()
+    weatherPreviewTemp.value = Math.round(data.current.temperature_2m)
+  } catch {
+    // preview temp is optional
+  }
+}
+
+const clearWeather = () => {
+  weatherCity.value        = null
+  weatherLat.value         = null
+  weatherLon.value         = null
+  weatherPreviewTemp.value = null
+  cityQuery.value          = ''
+  cityResults.value        = []
+}
+
+// ── Save ─────────────────────────────────────────────
 const handleSave = async () => {
   saveError.value = ''
   saving.value = true
@@ -196,6 +317,9 @@ const handleSave = async () => {
     if (selectedFile.value) {
       formData.append('video', selectedFile.value)
     }
+    formData.append('weather_city', weatherCity.value || '')
+    formData.append('weather_lat',  weatherLat.value  ?? '')
+    formData.append('weather_lon',  weatherLon.value  ?? '')
 
     const res = await updateDisplaySettings(formData)
     videoUrl.value = res.data.video_url || null
@@ -509,4 +633,142 @@ onBeforeUnmount(() => {
   gap: 0.5rem;
   padding: 2rem 0;
 }
+
+.section-divider {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin: 0.5rem 0;
+}
+
+.section-divider::before,
+.section-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: #e2e8f0;
+}
+
+.section-divider-label {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  white-space: nowrap;
+}
+
+/* ── Weather ─────────────────────────────────────── */
+.weather-search {
+  display: flex;
+  gap: 0.6rem;
+  width: 100%;
+  max-width: 420px;
+}
+
+.city-input {
+  flex: 1;
+  padding: 0.55rem 0.9rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 0.875rem;
+  color: #0f172a;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.city-input:focus { border-color: #3b82f6; }
+
+.weather-btn {
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.city-results {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  width: 100%;
+  max-width: 420px;
+}
+
+.city-result {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.55rem 0.9rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+  gap: 1rem;
+}
+
+.city-result:hover { background: #eff6ff; border-color: #93c5fd; }
+
+.city-result-name {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.city-result-detail {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 0.78rem;
+  color: #64748b;
+  white-space: nowrap;
+}
+
+.weather-selected {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 0.9rem;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 8px;
+  width: 100%;
+  max-width: 420px;
+}
+
+.weather-selected-info {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #166534;
+  flex: 1;
+}
+
+.weather-preview-temp {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #15803d;
+}
+
+.btn-icon-danger {
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: #94a3b8;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  transition: color 0.15s, background 0.15s;
+  flex-shrink: 0;
+}
+
+.btn-icon-danger:hover { color: #ef4444; background: #fef2f2; }
 </style>
