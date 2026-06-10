@@ -85,11 +85,11 @@
       background: #2980b9;
       transform: scale(1.05);
     }
-    
-    .countdown {
-      color: #f39c12;
-      font-size: 14px;
-      margin-top: 15px;
+
+    .retry-btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
     }
   </style>
 </head>
@@ -100,7 +100,7 @@
     <h1>Sin conexión al servidor</h1>
     
     <p>No se pudo conectar con el servidor del sistema Turnero.</p>
-    <p>La aplicación intentará reconectarse automáticamente.</p>
+    <p>Verificá la conexión de red y presioná el botón para reintentar.</p>
     
     <div class="status">
       <div class="status-item">
@@ -117,32 +117,24 @@
       </div>
     </div>
     
-    <button class="retry-btn" onclick="retry()">
+    <button class="retry-btn" id="retry-btn" onclick="retry()">
       🔄 Reintentar Ahora
     </button>
-    
-    <div class="countdown">
-      Reintentando automáticamente en <span id="countdown">5</span> segundos...
-    </div>
   </div>
 
   <script>
-    let countdown = 5;
-    
     function retry() {
-      window.location.reload();
-    }
-    
-    // Countdown automático
-    setInterval(() => {
-      countdown--;
-      document.getElementById('countdown').textContent = countdown;
-      
-      if (countdown <= 0) {
-        retry();
+      const btn = document.getElementById('retry-btn');
+      btn.disabled = true;
+      btn.textContent = '🔄 Conectando...';
+
+      if (window.turneroAPI && window.turneroAPI.retryConnection) {
+        window.turneroAPI.retryConnection();
+      } else {
+        window.location.reload();
       }
-    }, 1000);
-    
+    }
+
     // Cargar info del totem si está disponible
     if (window.turneroAPI) {
       window.turneroAPI.getConfig().then(config => {

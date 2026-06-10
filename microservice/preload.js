@@ -56,6 +56,11 @@ try {
    * Recarga la aplicación
    */
   reloadApp: () => ipcRenderer.invoke('reload-app'),
+
+  /**
+   * Reintenta la conexión con el servidor (desde la pantalla de error)
+   */
+  retryConnection: () => ipcRenderer.invoke('retry-connection'),
   
   // ============================================================
   // Información

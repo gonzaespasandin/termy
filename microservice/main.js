@@ -12,6 +12,32 @@ let mainWindow = null;
 
 let config = null;
 let ticketPrinter = null;
+let isShowingErrorPage = false;
+
+function getServerUrl() {
+  return `${config.serverUrl}?totem=${config.totemCode}`;
+}
+
+// Muestra la pantalla de error, evitando recargas duplicadas si ya está visible
+function showErrorPage() {
+  if (!mainWindow || isShowingErrorPage) return;
+  isShowingErrorPage = true;
+  mainWindow.loadFile(path.join(__dirname, 'src', 'error.html'));
+}
+
+// Carga (o recarga) la URL del servidor
+function loadServer() {
+  if (!mainWindow) return;
+  const serverUrl = getServerUrl();
+  isShowingErrorPage = false;
+
+  console.log('🚀 Cargando:', serverUrl);
+
+  mainWindow.loadURL(serverUrl).catch((err) => {
+    console.error('❌ Error cargando URL:', err);
+    showErrorPage();
+  });
+}
 
 function createWindow() {
   // Crear la ventana del navegador
@@ -30,16 +56,8 @@ function createWindow() {
   });
 
   // Cargar la URL del servidor
-  const serverUrl = `${config.serverUrl}?totem=${config.totemCode}`;
-  
-  console.log('🚀 Cargando:', serverUrl);
-  
-  mainWindow.loadURL(serverUrl).catch((err) => {
-    console.error('❌ Error cargando URL:', err);
-    // Mostrar página de error
-    mainWindow.loadFile(path.join(__dirname, 'src', 'error.html'));
-  });
-  
+  loadServer();
+
   // Log cuando la página termine de cargar
   mainWindow.webContents.on('did-finish-load', () => {
     console.log('[MAIN] Pagina cargada correctamente');
@@ -57,17 +75,11 @@ function createWindow() {
     mainWindow = null;
   });
 
-  // Manejar errores de carga
-  mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
+  // Manejar errores de carga (solo del frame principal)
+  mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription, validatedURL, isMainFrame) => {
+    if (!isMainFrame) return;
     console.error(`❌ Error de carga: ${errorDescription} (${errorCode})`);
-    
-    // Reintentar después de 5 segundos
-    setTimeout(() => {
-      if (mainWindow) {
-        console.log('🔄 Reintentando conexión...');
-        mainWindow.loadURL(serverUrl);
-      }
-    }, 5000);
+    showErrorPage();
   });
 }
 
@@ -123,6 +135,12 @@ function registerIpcHandlers() {
     if (mainWindow) {
       mainWindow.reload();
     }
+  });
+
+  // Reintentar conexión con el servidor (desde la pantalla de error)
+  ipcMain.handle('retry-connection', () => {
+    console.log('🔄 Reintentando conexión (manual)...');
+    loadServer();
   });
 
   // Abrir carpeta de configuración (soporte)
