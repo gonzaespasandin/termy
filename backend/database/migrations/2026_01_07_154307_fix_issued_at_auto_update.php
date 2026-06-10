@@ -7,11 +7,12 @@ return new class extends Migration
 {
     public function up(): void
     {
-        // Arreglar issued_at para que NO tenga ON UPDATE CURRENT_TIMESTAMP
-        DB::statement('ALTER TABLE turns MODIFY COLUMN issued_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP');
-        
-        // También arreglar created_at por las dudas
-        DB::statement('ALTER TABLE turns MODIFY COLUMN created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP');
+        // MODIFY COLUMN is MySQL-only syntax. SQLite doesn't have ON UPDATE CURRENT_TIMESTAMP
+        // so this fix is only needed on MySQL/MariaDB connections.
+        if (DB::getDriverName() === 'mysql') {
+            DB::statement('ALTER TABLE turns MODIFY COLUMN issued_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP');
+            DB::statement('ALTER TABLE turns MODIFY COLUMN created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP');
+        }
     }
 
     public function down(): void

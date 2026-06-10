@@ -14,7 +14,7 @@ class DatabaseSeeder extends Seeder
             WindowSeeder::class,     // Ventanillas (dependen de servicios)
             TotemSeeder::class,      // Totems/Perfiles (dependen de servicios)
             UserSeeder::class,       // Usuarios (dependen de ventanillas y servicios)
-            //TicketSeeder::class,     // Tickets (dependen de servicios)
+            TicketSeeder::class,      // Tickets (dependen de servicios)
         ]);
     }
 }
