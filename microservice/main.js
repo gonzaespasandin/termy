@@ -186,9 +186,10 @@ function createWindow() {
     if (crashCount <= 3) {
       setTimeout(() => createWindow(), 500);
     } else {
-      console.error('❌ Demasiados crasheos consecutivos. Mostrando pantalla de error.');
+      console.error('❌ Demasiados crasheos consecutivos. Reiniciando proceso via watchdog.');
       crashCount = 0;
-      createWindow();
+      app.isQuiting = true;
+      app.quit();
     }
   });
 }
