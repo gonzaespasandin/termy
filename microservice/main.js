@@ -3,8 +3,10 @@
  * Main Process de Electron
  */
 
-const { app, BrowserWindow, ipcMain, dialog, Menu, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, Menu, shell, globalShortcut } = require('electron');
 const path = require('path');
+const crypto = require('crypto');
+const { spawn } = require('child_process');
 const { loadEnv } = require('./src/envLoader');
 
 // Mantener referencia global de la ventana
@@ -13,6 +15,13 @@ let mainWindow = null;
 let config = null;
 let ticketPrinter = null;
 let isShowingErrorPage = false;
+
+// Estado del modo mantenimiento (escape del kiosko)
+let maintenanceMode = false;
+let maintenanceWindow = null;
+let explorerProcess = null;
+
+const MAINTENANCE_SHORTCUT = 'Control+Alt+Shift+Q';
 
 function getServerUrl() {
   return `${config.serverUrl}?totem=${config.totemCode}`;
@@ -37,6 +46,81 @@ function loadServer() {
     console.error('❌ Error cargando URL:', err);
     showErrorPage();
   });
+}
+
+// Abre el prompt de contraseña de mantenimiento
+function openMaintenancePrompt() {
+  if (maintenanceWindow) {
+    maintenanceWindow.focus();
+    return;
+  }
+
+  maintenanceWindow = new BrowserWindow({
+    width: 400,
+    height: 250,
+    frame: false,
+    alwaysOnTop: true,
+    resizable: false,
+    parent: mainWindow,
+    modal: true,
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      preload: path.join(__dirname, 'preload.js')
+    }
+  });
+
+  maintenanceWindow.setMenuBarVisibility(false);
+  maintenanceWindow.loadFile(path.join(__dirname, 'src', 'maintenance.html'));
+
+  maintenanceWindow.on('closed', () => {
+    maintenanceWindow = null;
+  });
+}
+
+// Sale del modo kiosko y abre el explorador de Windows para mantenimiento
+function enterMaintenanceMode() {
+  maintenanceMode = true;
+
+  if (mainWindow) {
+    mainWindow.setKiosk(false);
+    mainWindow.setFullScreen(false);
+    mainWindow.minimize();
+  }
+
+  if (process.platform === 'win32') {
+    explorerProcess = spawn('explorer.exe', [], { detached: true, stdio: 'ignore' });
+    explorerProcess.unref();
+  }
+
+  if (maintenanceWindow) {
+    maintenanceWindow.close();
+  }
+
+  console.log('🔧 Modo mantenimiento activado');
+}
+
+// Vuelve a poner la app en modo kiosko y cierra el explorador abierto
+function exitMaintenanceMode() {
+  maintenanceMode = false;
+
+  if (process.platform === 'win32') {
+    spawn('taskkill', ['/IM', 'explorer.exe', '/F'], { stdio: 'ignore' });
+  }
+  explorerProcess = null;
+
+  if (mainWindow) {
+    mainWindow.restore();
+    mainWindow.setFullScreen(true);
+    mainWindow.setKiosk(true);
+    mainWindow.focus();
+  }
+
+  if (maintenanceWindow) {
+    maintenanceWindow.close();
+  }
+
+  console.log('🔒 Modo kiosko reactivado');
 }
 
 function createWindow() {
@@ -70,6 +154,11 @@ function createWindow() {
     }
   });
 
+  // Evitar que la ventana se cierre (Alt+F4, etc.) — el kiosko nunca se cierra solo
+  mainWindow.on('close', (event) => {
+    event.preventDefault();
+  });
+
   // Manejar cierre de ventana
   mainWindow.on('closed', () => {
     mainWindow = null;
@@ -80,6 +169,16 @@ function createWindow() {
     if (!isMainFrame) return;
     console.error(`❌ Error de carga: ${errorDescription} (${errorCode})`);
     showErrorPage();
+  });
+
+  // Si el renderer crashea, recrear la ventana en vez de dejarla en blanco
+  mainWindow.webContents.on('render-process-gone', (event, details) => {
+    console.error('❌ Render process gone:', details.reason);
+    if (mainWindow) {
+      mainWindow.destroy();
+      mainWindow = null;
+    }
+    createWindow();
   });
 }
 
@@ -153,6 +252,30 @@ function registerIpcHandlers() {
       return { success: false, error: error.message };
     }
   });
+
+  // Verificar contraseña de mantenimiento y, si es correcta, salir del kiosko
+  ipcMain.handle('verify-kiosk-password', (event, password) => {
+    if (!config.kioskExitPasswordHash) {
+      return { success: false, error: 'Modo mantenimiento no configurado' };
+    }
+
+    const hash = crypto.createHash('sha256').update(String(password || ''), 'utf8').digest('hex');
+
+    if (hash === config.kioskExitPasswordHash) {
+      enterMaintenanceMode();
+      return { success: true };
+    }
+
+    return { success: false, error: 'Contraseña incorrecta' };
+  });
+
+  // Cerrar el prompt de mantenimiento sin verificar
+  ipcMain.handle('cancel-maintenance-prompt', () => {
+    if (maintenanceWindow) {
+      maintenanceWindow.close();
+    }
+    return { success: true };
+  });
 }
 
 // ============================================================
@@ -207,11 +330,28 @@ app.whenReady().then(() => {
   registerIpcHandlers();
   createWindow();
 
+  // Atajo oculto para entrar/salir del modo mantenimiento
+  const shortcutOk = globalShortcut.register(MAINTENANCE_SHORTCUT, () => {
+    if (maintenanceMode) {
+      exitMaintenanceMode();
+    } else {
+      openMaintenancePrompt();
+    }
+  });
+
+  if (!shortcutOk) {
+    console.error(`⚠️ No se pudo registrar el atajo de mantenimiento (${MAINTENANCE_SHORTCUT})`);
+  }
+
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       createWindow();
     }
   });
+});
+
+app.on('will-quit', () => {
+  globalShortcut.unregisterAll();
 });
 
 app.on('window-all-closed', () => {
