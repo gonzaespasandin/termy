@@ -22,6 +22,7 @@ let maintenanceWindow = null;
 let explorerProcess = null;
 
 const MAINTENANCE_SHORTCUT = 'Control+Alt+Shift+Q';
+let crashCount = 0;
 
 function getServerUrl() {
   return `${config.serverUrl}?totem=${config.totemCode}`;
@@ -145,6 +146,7 @@ function createWindow() {
   // Log cuando la página termine de cargar
   mainWindow.webContents.on('did-finish-load', () => {
     console.log('[MAIN] Pagina cargada correctamente');
+    crashCount = 0;
   });
 
   // Prevenir navegación a otras URLs
@@ -156,7 +158,9 @@ function createWindow() {
 
   // Evitar que la ventana se cierre (Alt+F4, etc.) — el kiosko nunca se cierra solo
   mainWindow.on('close', (event) => {
-    event.preventDefault();
+    if (!app.isQuiting) {
+      event.preventDefault();
+    }
   });
 
   // Manejar cierre de ventana
@@ -178,7 +182,14 @@ function createWindow() {
       mainWindow.destroy();
       mainWindow = null;
     }
-    createWindow();
+    crashCount = (crashCount || 0) + 1;
+    if (crashCount <= 3) {
+      setTimeout(() => createWindow(), 500);
+    } else {
+      console.error('❌ Demasiados crasheos consecutivos. Mostrando pantalla de error.');
+      crashCount = 0;
+      createWindow();
+    }
   });
 }
 
@@ -351,6 +362,7 @@ app.whenReady().then(() => {
 });
 
 app.on('will-quit', () => {
+  app.isQuiting = true;
   globalShortcut.unregisterAll();
 });
 
