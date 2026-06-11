@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Modo Mantenimiento</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #1a1a2e;
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    .container {
+      text-align: center;
+      padding: 30px;
+      width: 100%;
+    }
+
+    h1 {
+      font-size: 18px;
+      margin-bottom: 15px;
+    }
+
+    input[type="password"] {
+      width: 80%;
+      padding: 10px;
+      font-size: 16px;
+      border-radius: 6px;
+      border: 1px solid #444;
+      background: #0f0f1e;
+      color: white;
+      margin-bottom: 10px;
+    }
+
+    button {
+      padding: 10px 25px;
+      font-size: 14px;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+      margin: 5px;
+    }
+
+    .confirm {
+      background: #3498db;
+      color: white;
+    }
+
+    .cancel {
+      background: #555;
+      color: white;
+    }
+
+    .error {
+      color: #e74c3c;
+      min-height: 18px;
+      font-size: 13px;
+      margin-top: 8px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔒 Modo Mantenimiento</h1>
+    <input type="password" id="password" placeholder="Contraseña" autofocus>
+    <div class="error" id="error"></div>
+    <div>
+      <button class="confirm" id="confirm-btn">Ingresar</button>
+      <button class="cancel" id="cancel-btn">Cancelar</button>
+    </div>
+  </div>
+  <script>
+    const input = document.getElementById('password');
+    const errorEl = document.getElementById('error');
+
+    async function submitPassword() {
+      const result = await window.turneroAPI.verifyKioskPassword(input.value);
+      if (!result.success) {
+        errorEl.textContent = result.error || 'Contraseña incorrecta';
+        input.value = '';
+        input.focus();
+      }
+    }
+
+    function cancel() {
+      window.turneroAPI.cancelMaintenancePrompt();
+    }
+
+    document.getElementById('confirm-btn').addEventListener('click', submitPassword);
+    document.getElementById('cancel-btn').addEventListener('click', cancel);
+
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') submitPassword();
+      if (e.key === 'Escape') cancel();
+    });
+  </script>
+</body>
+</html>
