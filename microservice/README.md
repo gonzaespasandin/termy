@@ -9,6 +9,8 @@ Aplicación de escritorio Electron para totems físicos. Carga la interfaz web d
 - Configuración flexible mediante archivo `.env`
 - Instalador Windows (NSIS) y versión portable ejecutable
 - Reconexión automática si el servidor no está disponible al iniciar
+- Modo kiosko reforzado a nivel de Windows (sin salida al escritorio,
+  reinicio automático) — ver [`KIOSK_SETUP.md`](./KIOSK_SETUP.md)
 
 ## Requisitos
 
