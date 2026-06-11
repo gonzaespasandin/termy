@@ -10,21 +10,28 @@
 
 # Ruta al ejecutable instalado. Ajustar segun la instalacion real
 # (ver KIOSK_SETUP.md para como encontrarla).
-$ExePath = "C:\Users\totem\AppData\Local\Programs\Turnero Totem\Turnero Totem.exe"
+$ExePath = "$env:LOCALAPPDATA\Programs\Turnero Totem\Turnero Totem.exe"
 
 $RestartDelaySeconds = 2
 $MissingExeRetrySeconds = 10
+
+$LogFile = Join-Path $PSScriptRoot "watchdog.log"
+function Write-Log {
+    param([string]$Message)
+    $line = "$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') $Message"
+    Add-Content -Path $LogFile -Value $line -ErrorAction SilentlyContinue
+}
 
 while ($true) {
     if (Test-Path -LiteralPath $ExePath) {
         try {
             Start-Process -FilePath $ExePath -Wait
         } catch {
-            Write-Host "Error al iniciar Turnero Totem: $_"
+            Write-Log "Error al iniciar Turnero Totem: $_"
         }
         Start-Sleep -Seconds $RestartDelaySeconds
     } else {
-        Write-Host "No se encontro el ejecutable en: $ExePath"
+        Write-Log "No se encontro el ejecutable en: $ExePath"
         Start-Sleep -Seconds $MissingExeRetrySeconds
     }
 }
