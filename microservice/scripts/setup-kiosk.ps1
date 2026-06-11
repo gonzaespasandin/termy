@@ -99,8 +99,9 @@ if (-not $adminProfile) {
 } else {
     $hiveFile = Join-Path $adminProfile "NTUSER.DAT"
     $hiveName = "TempAdminHive"
-    reg load "HKU\$hiveName" "$hiveFile" | Out-Null
     try {
+        reg load "HKU\$hiveName" "$hiveFile" | Out-Null
+        if ($LASTEXITCODE -ne 0) { throw "No se pudo montar el hive de '$AdminUsername'." }
         $adminWinlogonPath = "Registry::HKEY_USERS\$hiveName\Software\Microsoft\Windows NT\CurrentVersion\Winlogon"
         if (-not (Test-Path $adminWinlogonPath)) {
             New-Item -Path $adminWinlogonPath -Force | Out-Null
@@ -108,6 +109,7 @@ if (-not $adminProfile) {
         Set-ItemProperty -Path $adminWinlogonPath -Name "Shell" -Value "explorer.exe" -Type String
     } finally {
         [gc]::Collect()
+        [gc]::WaitForPendingFinalizers()
         reg unload "HKU\$hiveName" | Out-Null
     }
 }
@@ -115,13 +117,14 @@ if (-not $adminProfile) {
 Write-Host "=== 6. Aplicando restricciones al perfil 'Default' (heredadas por cuentas nuevas) ==="
 $defaultHive = "C:\Users\Default\NTUSER.DAT"
 $hiveName = "TempDefaultHive"
-reg load "HKU\$hiveName" "$defaultHive" | Out-Null
 try {
+    reg load "HKU\$hiveName" "$defaultHive" | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw "No se pudo montar el hive de Default." }
     $systemPolicyPath = "Registry::HKEY_USERS\$hiveName\Software\Microsoft\Windows\CurrentVersion\Policies\System"
     $explorerPolicyPath = "Registry::HKEY_USERS\$hiveName\Software\Microsoft\Windows\CurrentVersion\Policies\Explorer"
 
-    New-Item -Path $systemPolicyPath -Force | Out-Null
-    New-Item -Path $explorerPolicyPath -Force | Out-Null
+    if (-not (Test-Path $systemPolicyPath)) { New-Item -Path $systemPolicyPath -Force | Out-Null }
+    if (-not (Test-Path $explorerPolicyPath)) { New-Item -Path $explorerPolicyPath -Force | Out-Null }
 
     # Deshabilitar Administrador de Tareas
     Set-ItemProperty -Path $systemPolicyPath -Name "DisableTaskMgr" -Value 1 -Type DWord
@@ -136,6 +139,7 @@ try {
     Set-ItemProperty -Path $explorerPolicyPath -Name "NoLogoff" -Value 1 -Type DWord
 } finally {
     [gc]::Collect()
+    [gc]::WaitForPendingFinalizers()
     reg unload "HKU\$hiveName" | Out-Null
 }
 
