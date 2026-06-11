@@ -61,7 +61,24 @@ try {
    * Reintenta la conexión con el servidor (desde la pantalla de error)
    */
   retryConnection: () => ipcRenderer.invoke('retry-connection'),
-  
+
+  // ============================================================
+  // Modo Mantenimiento (Kiosko)
+  // ============================================================
+
+  /**
+   * Verifica la contraseña de mantenimiento. Si es correcta, la app
+   * sale del modo kiosko y se abre el escritorio de Windows.
+   * @param {string} password
+   * @returns {Promise<{success: boolean, error?: string}>}
+   */
+  verifyKioskPassword: (password) => ipcRenderer.invoke('verify-kiosk-password', password),
+
+  /**
+   * Cierra el prompt de mantenimiento sin verificar la contraseña.
+   */
+  cancelMaintenancePrompt: () => ipcRenderer.invoke('cancel-maintenance-prompt'),
+
   // ============================================================
   // Información
   // ============================================================
