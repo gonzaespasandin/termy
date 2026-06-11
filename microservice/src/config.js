@@ -28,7 +28,11 @@ const config = {
   ticketWidth: parseInt(process.env.TICKET_WIDTH) || 58, // mm
   
   // Auto-inicio con Windows
-  autoStart: process.env.AUTO_START !== 'false'
+  autoStart: process.env.AUTO_START !== 'false',
+
+  // Hash SHA-256 de la contraseña para salir del modo kiosko (Ctrl+Alt+Shift+Q)
+  // Vacío = atajo de mantenimiento deshabilitado
+  kioskExitPasswordHash: process.env.KIOSK_EXIT_PASSWORD_HASH || ''
 };
 
 module.exports = config;
