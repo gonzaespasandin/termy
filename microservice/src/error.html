@@ -118,16 +118,35 @@
     </div>
     
     <button class="retry-btn" id="retry-btn" onclick="retry()">
-      🔄 Reintentar Ahora
+      🔄 Reintentar en 10s
     </button>
   </div>
 
   <script>
+    var COUNTDOWN_SECONDS = 10;
+    var remaining = COUNTDOWN_SECONDS;
+    var retrying = false;
+    var countdownInterval = null;
+
     function retry() {
-      const btn = document.getElementById('retry-btn');
+      // Idempotente: solo el primer llamado (timer o click) procede.
+      if (retrying) return;
+
+      // 1) Limpiar el interval primero para que nunca dispare después de este punto.
+      if (countdownInterval !== null) {
+        clearInterval(countdownInterval);
+        countdownInterval = null;
+      }
+
+      // 2) Marcar como reintentando para que cualquier llamado posterior sea no-op.
+      retrying = true;
+
+      // 3) Deshabilitar el botón y mostrar estado conectando.
+      var btn = document.getElementById('retry-btn');
       btn.disabled = true;
       btn.textContent = '🔄 Conectando...';
 
+      // 4) Disparar la reconexión exactamente una vez.
       if (window.turneroAPI && window.turneroAPI.retryConnection) {
         window.turneroAPI.retryConnection();
       } else {
@@ -135,9 +154,28 @@
       }
     }
 
-    // Cargar info del totem si está disponible
-    if (window.turneroAPI) {
-      window.turneroAPI.getConfig().then(config => {
+    function renderCountdown() {
+      if (retrying) return;
+      var btn = document.getElementById('retry-btn');
+      btn.textContent = '🔄 Reintentar en ' + remaining + 's';
+    }
+
+    function tick() {
+      remaining -= 1;
+      if (remaining <= 0) {
+        retry();
+        return;
+      }
+      renderCountdown();
+    }
+
+    // Arrancar el countdown al cargar la página.
+    renderCountdown();
+    countdownInterval = setInterval(tick, 1000);
+
+    // Cargar info del totem si está disponible.
+    if (window.turneroAPI && window.turneroAPI.getConfig) {
+      window.turneroAPI.getConfig().then(function (config) {
         document.getElementById('server-url').textContent = config.serverUrl;
         document.getElementById('totem-code').textContent = config.totemCode;
       });
