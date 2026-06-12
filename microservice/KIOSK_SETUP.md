@@ -6,6 +6,75 @@ escritorio de Windows, y con reinicio automático si la app se cierra.
 
 No requiere Windows Assigned Access ni certificación de dispositivos.
 
+## Orden correcto de instalación (resumen ejecutivo)
+
+Antes de entrar en detalle, este es el orden correcto para hacer el setup
+desde cero en un totem nuevo. Saltarse el orden causa problemas de permisos
+que son difíciles de diagnosticar.
+
+1. **Instalar Python para todos los usuarios** (ver Pre-requisitos)
+2. **Instalar `pywin32`** para todos los usuarios
+3. **Instalar la app del totem** en `C:\ProgramData\turnero-totem\`
+4. **Crear la cuenta kiosko** y correr `setup-kiosk.ps1`
+5. **Configurar el `.env`** del usuario kiosko
+6. **Configurar la contraseña de mantenimiento**
+
+> ⚠️ **El error más común:** instalar Python o la app "para el usuario
+> actual" (o desde la Microsoft Store). Siempre usar el instalador de
+> [python.org](https://www.python.org/downloads/) con "Install for all users".
+
+---
+
+## Pre-requisitos
+
+### Python (obligatorio para impresión)
+
+La impresión de tickets usa Python + `win32print`. Python **debe estar
+instalado para todos los usuarios**, no solo para el admin.
+
+**No usar** la versión de la Microsoft Store — no soporta bien `pywin32`.
+
+1. Bajá el instalador desde [python.org](https://www.python.org/downloads/).
+2. Al correrlo, marcá **"Add Python to PATH"**.
+3. Elegí **"Install for all users"** (requiere admin). Esto lo instala en
+   `C:\Program Files\Python3X\` y lo hace accesible para la cuenta kiosko.
+4. Instalá `pywin32`:
+   ```powershell
+   python -m pip install pywin32
+   ```
+5. Verificá que funcione:
+   ```powershell
+   python -c "import win32print; print(win32print.GetDefaultPrinter())"
+   ```
+
+Si `pip` no se reconoce:
+```powershell
+python -m ensurepip --upgrade
+python -m pip install pywin32
+```
+
+### App del totem
+
+Instalá `Turnero Totem Setup *.exe` **en `C:\ProgramData\turnero-totem\`**,
+no en `AppData` del usuario admin. Esto evita problemas de permisos cuando
+la cuenta kiosko intenta ejecutar la app.
+
+La manera más simple es instalar normalmente y después copiar la carpeta:
+```powershell
+Copy-Item "C:\Users\<admin>\AppData\Local\Programs\turnero-totem" `
+    "C:\ProgramData\turnero-totem" -Recurse
+```
+
+O si el instalador lo permite, elegir una ruta de instalación custom
+dentro de `C:\ProgramData\` o `C:\Program Files\`.
+
+La ruta del `.exe` que usarás en los pasos siguientes es:
+```
+C:\ProgramData\turnero-totem\Turnero Totem.exe
+```
+
+---
+
 ## Resumen del enfoque
 
 1. **App (Electron):** la app ya corre en `kiosk: true` + `fullscreen: true`,
@@ -23,7 +92,21 @@ No requiere Windows Assigned Access ni certificación de dispositivos.
 La cuenta de administrador actual queda intacta (sigue usando
 `explorer.exe` normalmente) para mantenimiento remoto (RDP/AnyDesk).
 
-## Paso 0: Configurar la contraseña de mantenimiento
+## Paso 0: Crear la cuenta kiosko primero (si no existe)
+
+Antes de correr el script, creá la cuenta kiosko manualmente para que
+su perfil de Windows ya exista. Esto es importante porque:
+- El script aplica restricciones al perfil "Default" (para cuentas nuevas),
+  pero si la cuenta ya existía antes de aplicarlas, no las hereda
+  automáticamente.
+- Si la cuenta no existe, el script la crea — pero conviene crearla antes
+  para poder iniciar sesión una vez y que Windows genere el perfil.
+
+Panel de Control → Cuentas de usuario → Agregar otra persona → cuenta
+local, sin permisos de administrador. Ponerle contraseña (requerido para
+que el auto-logon funcione en Windows Pro).
+
+## Paso 1: Configurar la contraseña de mantenimiento
 
 1. Elegí una contraseña (solo para técnicos).
 2. Generá su hash SHA-256:
@@ -37,15 +120,6 @@ La cuenta de administrador actual queda intacta (sigue usando
    ```
 4. Reiniciá la app para que tome el nuevo valor.
 
-## Paso 1: Instalar la app del totem normalmente
-
-Instalá `Turnero Totem Setup *.exe` (o copiá la versión portable) en el
-equipo, con la cuenta de administrador actual. Anotá la ruta final del
-`.exe` — la vas a necesitar en el paso 2. Ubicaciones típicas:
-
-- Instalador NSIS: `C:\Users\<usuario>\AppData\Local\Programs\Turnero Totem\Turnero Totem.exe`
-- Versión portable: donde hayas copiado `Turnero Totem *.exe`
-
 ## Paso 2: Correr el script de setup (recomendado)
 
 Desde `microservice/scripts/`, como **Administrador**:
@@ -54,30 +128,72 @@ Desde `microservice/scripts/`, como **Administrador**:
 powershell.exe -ExecutionPolicy Bypass -File .\setup-kiosk.ps1 `
     -TotemUsername "totem" `
     -TotemPassword "ELEGIR_CLAVE_SEGURA" `
-    -ExePath "C:\Users\totem\AppData\Local\Programs\Turnero Totem\Turnero Totem.exe"
+    -ExePath "C:\ProgramData\turnero-totem\Turnero Totem.exe"
 ```
 
+Reemplazá `"totem"` por el nombre de usuario que creaste en el Paso 0.
+Usá la ruta de `C:\ProgramData\` (ver Pre-requisitos) — no la de `AppData`
+del admin, porque la cuenta kiosko no tendrá permisos para acceder ahí.
+
 Esto:
-- Crea la cuenta `totem` (sin admin) con auto-logon.
+- Crea la cuenta kiosko (sin admin) con auto-logon, o actualiza su
+  contraseña si ya existe.
 - Copia los scripts del watchdog a `C:\ProgramData\TurneroTotemKiosk\`.
 - Configura el watchdog como "Shell" por defecto.
 - Mantiene `explorer.exe` como shell para tu cuenta admin actual.
 - Aplica las restricciones (Task Manager, Panel de Control, Ejecutar,
   cierre de sesión) al perfil "Default", para que las herede la cuenta
-  `totem` quando inicie sesión por primera vez.
+  kiosko la primera vez que inicie sesión.
+
+> ⚠️ **Nota:** el script intenta montar el NTUSER.DAT de la cuenta admin
+> para preservarle `explorer.exe`. Esto falla si estás logueado con esa
+> cuenta (Windows ya tiene el hive cargado). Si pasa, el script para en
+> el Paso 5 con un error. Solución: correr manualmente en PowerShell admin:
+> ```powershell
+> $path = "HKCU:\Software\Microsoft\Windows NT\CurrentVersion\Winlogon"
+> if (-not (Test-Path $path)) { New-Item -Path $path -Force | Out-Null }
+> Set-ItemProperty -Path $path -Name "Shell" -Value "explorer.exe"
+> ```
+> Después correr el Paso 6 manualmente (ver más abajo) y reiniciar.
 
 Reiniciá el equipo al terminar.
 
-## Paso 2 (alternativa): Pasos manuales
+## Paso 3: Configurar el `.env` de la cuenta kiosko
+
+Al primer arranque, la app crea el `.env` automáticamente copiando
+`env.example`. Está en:
+```
+C:\Users\<totem-username>\AppData\Roaming\Turnero Totem\.env
+```
+
+Editalo y completá al menos:
+```env
+SERVER_URL=http://<IP-del-servidor>:5173
+TOTEM_CODE=TOTEM-PRINCIPAL     # debe coincidir con un registro en la BD
+KIOSK_EXIT_PASSWORD_HASH=      # ver Paso 1
+```
+
+Si la impresora térmica no es la predeterminada del sistema para la cuenta
+kiosko, especificala:
+```env
+PRINTER_NAME=KPOS_58 Printer   # nombre exacto como aparece en Windows
+```
+
+Verificá el nombre con:
+```powershell
+Get-CimInstance -ClassName Win32_Printer | Select-Object Name, Default
+```
+
+## Paso 4 (alternativa manual): Pasos manuales del setup
 
 Si preferís no correr el script, o querés entender/auditar cada cambio:
 
-### 2a. Crear la cuenta `totem`
+### 4a. Crear la cuenta kiosko
 
 Panel de Control → Cuentas de usuario → Agregar otra persona → cuenta
 local, sin permisos de administrador.
 
-### 2b. Configurar auto-logon
+### 4b. Configurar auto-logon
 
 `regedit` → `HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon`:
 
@@ -88,13 +204,13 @@ local, sin permisos de administrador.
 | `DefaultPassword` | REG_SZ | `<contraseña de totem>` |
 | `DefaultDomainName` | REG_SZ | `<nombre del equipo>` |
 
-### 2c. Copiar los scripts del watchdog
+### 4c. Copiar los scripts del watchdog
 
 Copiá `microservice/scripts/kiosk-watchdog.ps1` y `kiosk-watchdog.vbs` a
 `C:\ProgramData\TurneroTotemKiosk\`. Editá `kiosk-watchdog.ps1` y poné la
 ruta real del `.exe` en `$ExePath`.
 
-### 2d. Configurar el Shell
+### 4d. Configurar el Shell
 
 En la misma clave `Winlogon`, cambiá:
 
@@ -108,7 +224,7 @@ en `HKEY_CURRENT_USER\Software\Microsoft\Windows NT\CurrentVersion\Winlogon`
 (creá la clave `Winlogon` si no existe) con valor `explorer.exe`,
 **estando logueado con esa cuenta admin**.
 
-### 2e. Restricciones para `totem`
+### 4e. Restricciones para la cuenta kiosko
 
 Iniciá sesión una vez como `totem` (para que se cree su perfil), después
 abrí `regedit` **logueado como `totem`** y creá/editá:
