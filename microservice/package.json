@@ -1,6 +1,6 @@
 {
   "name": "turnero-totem",
-  "version": "2.1.0",
+  "version": "2.3.3",
   "description": "Aplicación de escritorio para totems del sistema Turnero",
   "main": "main.js",
   "scripts": {
