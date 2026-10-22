@@ -42,7 +42,6 @@
 
         <!-- Estado vacío -->
         <div v-else class="hero-empty">
-          <div class="hero-empty-icon">📡</div>
           <p class="hero-empty-text">Esperando próximo llamado...</p>
         </div>
 
