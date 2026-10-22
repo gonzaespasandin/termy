@@ -98,6 +98,7 @@
 import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { getQueue, getDisplaySettings, getDisplayQueue, getDisplayInfo } from '../api';
+import { API_URL } from '../config';
 
 // ──────────────────────────────
 // Reactive state
@@ -273,7 +274,7 @@ const connectSSE = () => {
     eventSource.close();
   }
 
-  eventSource = new EventSource('http://192.168.0.51:8000/api/sse/display');
+  eventSource = new EventSource(`${API_URL}/sse/display`);
 
   eventSource.onmessage = (event) => {
     try {

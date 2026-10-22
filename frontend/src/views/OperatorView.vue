@@ -76,6 +76,7 @@ import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { getOperatorQueue, getUser, logout as apiLogout, getWindowByIp } from '../api'
 import api from '../api'
+import { API_URL } from '../config'
 import { useToast } from '../composables/useToast'
 import { useConfirm } from '../composables/useConfirm'
 
@@ -273,7 +274,7 @@ const connectSSE = () => {
   if (!token) return
   if (eventSource) eventSource.close()
 
-  eventSource = new EventSource(`http://192.168.0.51:8000/api/sse/operator?token=${token}`)
+  eventSource = new EventSource(`${API_URL}/sse/operator?token=${token}`)
 
   eventSource.onmessage = (event) => {
     try {

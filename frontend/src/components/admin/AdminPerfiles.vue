@@ -309,6 +309,7 @@ import { ref, onMounted } from 'vue'
 import { getTotems, createTotem, updateTotem, deleteTotem, getServices } from '../../api'
 import { useToast } from '../../composables/useToast'
 import { useConfirm } from '../../composables/useConfirm'
+import { STORAGE_URL } from '../../config'
 
 const { showToast } = useToast()
 const { showConfirm } = useConfirm()
@@ -342,7 +343,7 @@ const form = ref(defaultForm())
 
 const getLogoUrl = (logoPath) => {
   if (!logoPath) return ''
-  return `http://192.168.0.51:8000/storage/${logoPath}`
+  return `${STORAGE_URL}/${logoPath}`
 }
 
 const getBackgroundStyle = (data) => {

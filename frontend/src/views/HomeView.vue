@@ -330,6 +330,7 @@
 import { ref, onMounted, onUnmounted, computed } from 'vue';
 import { getTotemServices, createTurn, getServices } from '../api';
 import * as printService from '../services/printService';
+import { STORAGE_URL } from '../config';
 
 // ──────────────────────────────
 // Reloj
@@ -460,7 +461,7 @@ const getServiceDescFontSize = () => {
 
 const totemLogo = computed(() => {
   if (!totemData.value?.logo) return null;
-  return `http://192.168.0.51:8000/storage/${totemData.value.logo}`;
+  return `${STORAGE_URL}/${totemData.value.logo}`;
 });
 
 const totemBackgroundStyle = computed(() => {
