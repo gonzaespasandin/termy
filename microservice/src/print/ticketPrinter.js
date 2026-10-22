@@ -112,8 +112,12 @@ async function printTicket(ticketData) {
         console.error(`❌ Error al imprimir (código ${code})`);
         if (stderr.includes('SIN_PAPEL')) {
           reject(new Error('SIN_PAPEL'));
+        } else if (stderr.includes('OFFLINE')) {
+          reject(new Error('OFFLINE'));
+        } else if (stderr.includes('ERROR_IMPRESORA')) {
+          reject(new Error('ERROR_IMPRESORA'));
         } else {
-          reject(new Error(stderr || `Error de impresión (código ${code})`));
+          reject(new Error(stderr.trim() || `Error de impresión (código ${code})`));
         }
       }
     });

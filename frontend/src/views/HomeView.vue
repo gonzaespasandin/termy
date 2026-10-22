@@ -611,10 +611,15 @@ const printTicket = async () => {
       throw new Error(result.error || 'Error al imprimir');
     }
   } catch (error) {
+    const ticket = generatedTurn.value.ticket_number;
     if (error.message === 'SIN_PAPEL') {
-      printError.value = `⚠️ Sin papel en la impresora. Su turno ${generatedTurn.value.ticket_number} fue registrado — avise a un asistente para recargar la impresora y recibir su comprobante.`;
+      printError.value = `⚠️ Sin papel en la impresora. Su turno ${ticket} fue registrado — avise a un asistente para recargar la impresora y recibir su comprobante.`;
+    } else if (error.message === 'OFFLINE') {
+      printError.value = `⚠️ Impresora desconectada. Su turno ${ticket} fue registrado — avise a un asistente para recibir su comprobante.`;
+    } else if (error.message === 'ERROR_IMPRESORA') {
+      printError.value = `⚠️ Error en la impresora. Su turno ${ticket} fue registrado — avise a un asistente para recibir su comprobante.`;
     } else {
-      printError.value = `No se pudo imprimir el ticket. Su turno ${generatedTurn.value.ticket_number} fue registrado igual — avise a un asistente para recibir su comprobante.`;
+      printError.value = `No se pudo imprimir el ticket. Su turno ${ticket} fue registrado — avise a un asistente para recibir su comprobante.`;
     }
   } finally {
     printing.value = false;
