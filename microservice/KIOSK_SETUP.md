@@ -65,9 +65,6 @@ Copy-Item "C:\Users\<admin>\AppData\Local\Programs\turnero-totem" `
     "C:\ProgramData\turnero-totem" -Recurse
 ```
 
-O si el instalador lo permite, elegir una ruta de instalación custom
-dentro de `C:\ProgramData\` o `C:\Program Files\`.
-
 La ruta del `.exe` que usarás en los pasos siguientes es:
 ```
 C:\ProgramData\turnero-totem\Turnero Totem.exe
