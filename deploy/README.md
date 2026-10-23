@@ -39,6 +39,20 @@ sudo nginx -t && sudo systemctl reload nginx
 Uploads: raise `upload_max_filesize` and `post_max_size` to `60M` in `/etc/php/8.3/fpm/php.ini`
 (display videos reach 50 MB), then `sudo systemctl reload php8.3-fpm`.
 
+## 2b. PHP-FPM pools (required before opening the site)
+
+SSE streams hold one PHP worker each for up to an hour. They run in their own pool so they cannot
+exhaust the workers that serve ticket creation and logins:
+
+```bash
+sudo cp deploy/php-fpm/termy-sse.conf /etc/php/8.3/fpm/pool.d/termy-sse.conf
+sudo nano /etc/php/8.3/fpm/pool.d/termy-sse.conf      # pm.max_children >= displays + operators + margin
+sudo nano /etc/php/8.3/fpm/pool.d/www.conf            # pm.max_children = 8 (default 5; ~35 MB per worker)
+sudo systemctl reload php8.3-fpm && ls /run/php/       # both sockets must exist
+```
+
+Check free memory (`free -m`) after sizing: workers x ~35 MB plus MySQL and Redis must fit in RAM.
+
 ## 3. HTTPS
 
 ```bash
