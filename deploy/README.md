@@ -48,6 +48,22 @@ sudo certbot --nginx -d turnos.example.com
 certbot rewrites the site file (TLS listener, certificates, redirect). Keep `APP_URL` and
 `FRONTEND_URL` on `https://`.
 
+## 3b. Testing over plain HTTP (no domain, no certificate)
+
+Fine for a first test with one totem, not for real customers: the login token and the SSE token
+travel unencrypted.
+
+- In `/etc/nginx/sites-available/termy` set `server_name _;` and skip certbot.
+- In `backend/.env` set `APP_URL=http://<ELASTIC_IP>` and `SESSION_SECURE_COOKIE=false`.
+- Totem `.env`: `SERVER_URL=http://<ELASTIC_IP>`. Displays and operator PCs open `http://<ELASTIC_IP>/display/1`
+  and `http://<ELASTIC_IP>/operator`.
+- Restrict port 80 in the EC2 security group to the IPs that will test (your own and the totem site)
+  instead of `0.0.0.0/0`. The API has no admin-role middleware or rate limiting yet
+  (see `docs/cloud-migration-and-roadmap.md`, section 3.2); do not expose it publicly before that
+  hardening is done.
+- When a domain is ready: restore `server_name`, run certbot, switch the URLs to `https://`
+  and set `SESSION_SECURE_COOKIE=true` again.
+
 ## 4. Build and upload the frontend (developer PC)
 
 ```bash
@@ -61,18 +77,15 @@ scp -r dist/* termy:/var/www/termy/frontend/dist/
 
 On the server, in `/var/www/termy/backend`:
 
+Read the password from a hidden prompt so it never lands in the shell history:
+
 ```bash
-php artisan tinker
+read -rsp "Admin password: " ADMIN_PW; echo; export ADMIN_PW
+php artisan tinker --execute="App\Models\User::create(['name' => 'Admin', 'email' => 'admin@your-domain.com', 'password' => getenv('ADMIN_PW'), 'role' => 'admin']);"
+unset ADMIN_PW
 ```
 
-```php
-App\Models\User::create([
-    'name' => 'Admin',
-    'email' => 'admin@your-domain.com',
-    'password' => 'a-strong-password',   // hashed automatically by the model cast
-    'role' => 'admin',                   // enum: admin | operator
-]);
-```
+`password` is hashed automatically by the model cast and `role` is an enum (`admin` | `operator`).
 
 `services` is nullable; leaving it empty means the user can attend all services.
 

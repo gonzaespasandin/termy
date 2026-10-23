@@ -1,6 +1,8 @@
 # Cloud migration and roadmap
 
-Status: planning notes. Nothing here is implemented yet.
+Status: in progress (branch `feat/cloud-ready`). Done so far: frontend backend URLs read from `VITE_API_URL`
+(`frontend/src/config.js`), deployment files in `deploy/`. Test instance running on EC2 (Ohio, `us-east-2`) with
+nginx, PHP 8.3, MySQL and Redis installed. Everything else below is still pending.
 Source: read-only audit of `backend/`, `frontend/` and `microservice/` (2026-10-08), plus product ideas.
 
 ---
@@ -48,7 +50,7 @@ The local print microservice (`http://localhost:5000` / Python `win32print`) sta
 
 ### 3.1 Will break (must fix)
 
-- [ ] **Hardcoded backend URL** `http://192.168.0.51:8000` in:
+- [x] **Hardcoded backend URL** `http://192.168.0.51:8000` (done in `feat/cloud-ready`) in:
   - `frontend/src/api/index.js:4`
   - `frontend/src/views/DisplayView.vue:276` (SSE)
   - `frontend/src/views/OperatorView.vue:276` (SSE)

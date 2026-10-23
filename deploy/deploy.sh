@@ -23,6 +23,8 @@ step "Installing PHP dependencies"
 composer install --no-dev --optimize-autoloader --no-interaction
 
 step "Running migrations"
+# Drop any cached config first so migrate never runs against a stale .env.
+php artisan config:clear
 php artisan migrate --force
 
 step "Linking public storage"
